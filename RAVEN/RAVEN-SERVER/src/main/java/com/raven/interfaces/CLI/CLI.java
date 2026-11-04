@@ -41,7 +41,7 @@ public final class CLI {
     private static final String PromptBottom = AnsiColor.Red + "└─" + AnsiColor.White + ">>" + AnsiColor.Reset + " ";
 
     private ServerConfig Config;
-    private final TeamDatabase Db;
+    private final TeamDatabase Database;
     private final EventLog Log;
     private final ExportCommand Export;
     private final OperatorConfig OperatorCfg;
@@ -64,9 +64,9 @@ public final class CLI {
 
     public CLI(ServerConfig Configuration) {
         this.Config = Configuration;
-        this.Db = TeamDatabase.Connect(Configuration);
+        this.Database = TeamDatabase.Connect(Configuration);
         this.Log = new EventLog(Configuration.GetMaxLogEntries());
-        this.Export = new ExportCommand(Db, Log, Config.GetExportDir());
+        this.Export = new ExportCommand(Database, Log, Config.GetExportDir());
         this.WebPanelManager = new WebPanelManager(Configuration);
         this.OperatorCfg = new OperatorConfig();
         ProfileManager.Initialize();
@@ -105,13 +105,13 @@ public final class CLI {
                     Pass = Reader.readLine();
                 }
                 if (Pass == null) return false;
-                if (!Db.ValidateOperator(User, Pass)) {
+                if (!Database.ValidateOperator(User, Pass)) {
                     Logger.Custom("  %sInvalid credentials — attempt %d/3%s%n%n", AnsiColor.Red, Try, AnsiColor.Reset);
                     continue;
                 }
                 OperatorName = User;
-                CurrentRole = Db.GetOperatorRole(User);
-                Db.UpdateLastSeen(User);
+                CurrentRole = Database.GetOperatorRole(User);
+                Database.UpdateLastSeen(User);
                 Logger.Info("Operator login: " + User + " [" + CurrentRole + "]");
                 Logger.Custom("  %n%sWelcome, %s [%s]%s%n", AnsiColor.Green, User, CurrentRole, AnsiColor.Reset);
                 Logger.Custom("  %sPermissions:%s %s%n%n", AnsiColor.Red, AnsiColor.White, CurrentRole.PermissionString());
@@ -238,7 +238,7 @@ public final class CLI {
                     Logger.Custom("  %sStatus    %sOFFLINE%n", AnsiColor.Red, AnsiColor.Red);
                 }
                 Logger.Custom("  %sUptime    %s%s%n", AnsiColor.Red, AnsiColor.White, SystemHelper.FormatUptime(Uptime));
-                Logger.Custom("  %sDatabase  %s%s (%s)%n%n", AnsiColor.Red, AnsiColor.White, Db.IsConnected() ? "connected" : "memory", Config.GetDatabaseType());
+                Logger.Custom("  %sDatabase  %s%s (%s)%n%n", AnsiColor.Red, AnsiColor.White, Database.IsConnected() ? "connected" : "memory", Config.GetDatabaseType());
                 if (IsTeamMode) Logger.Custom("  %sOperator  %s%s [%s]%n%n", AnsiColor.Red, AnsiColor.White, OperatorName, CurrentRole);
             }
             case "logs" -> {
@@ -412,7 +412,7 @@ public final class CLI {
             }
             case "sessions-history", "sesshistory" -> {
                 int Limit = P.length > 1 ? Helper.ParseInt(P[1], 50) : 50;
-                List<Map<String, Object>> Sessions = Db.GetSessionHistory(Limit);
+                List<Map<String, Object>> Sessions = Database.GetSessionHistory(Limit);
                 Logger.Custom("%s%n", TerminalHelper.Box("SESSION HISTORY (last " + Limit + ")"));
                 Logger.Custom("%n");
                 if (Sessions.isEmpty()) {
@@ -430,7 +430,7 @@ public final class CLI {
                 }
                 try {
                     int NoteId = ParseInt(P[1]);
-                    Db.SetAgentNote(NoteId, BuildArgs(P, 2));
+                    Database.SetAgentNote(NoteId, BuildArgs(P, 2));
                     Logger.Info("note saved for session-" + NoteId);
                 } catch (NumberFormatException Ex) {
                     Logger.Warn("invalid session ID");
@@ -443,7 +443,7 @@ public final class CLI {
                 }
                 try {
                     int NoteId = ParseInt(P[1]);
-                    String Note = Db.GetAgentNote(NoteId);
+                    String Note = Database.GetAgentNote(NoteId);
                     Logger.Custom("  %sNote [session-%d]:%s %s%n%n", AnsiColor.Red, NoteId, AnsiColor.White, Note.isBlank() ? "(empty)" : Note);
                 } catch (NumberFormatException Ex) {
                     Logger.Warn("invalid session ID");
@@ -471,7 +471,7 @@ public final class CLI {
                     Logger.Warn("only SUPER can create SUPER operators");
                     break;
                 }
-                if (Db.CreateOperator(P[1], AddPass, NewRole)) Logger.Info("operator created: " + P[1] + " [" + NewRole + "]");
+                if (Database.CreateOperator(P[1], AddPass, NewRole)) Logger.Info("operator created: " + P[1] + " [" + NewRole + "]");
                 else Logger.Warn("username already exists: " + P[1]);
             }
             case "delopt", "deleteoperator" -> {
@@ -487,7 +487,7 @@ public final class CLI {
                     Logger.Warn("cannot delete the admin account");
                     break;
                 }
-                if (Db.DeleteOperator(P[1])) Logger.Info("operator deleted: " + P[1]);
+                if (Database.DeleteOperator(P[1])) Logger.Info("operator deleted: " + P[1]);
                 else Logger.Warn("operator not found: " + P[1]);
             }
             case "kick", "kickopt" -> {
@@ -507,7 +507,7 @@ public final class CLI {
                     Logger.Warn("cannot kick yourself");
                     break;
                 }
-                if (Db.DeleteOperator(P[1])) Logger.Info("operator kicked: " + P[1]);
+                if (Database.DeleteOperator(P[1])) Logger.Info("operator kicked: " + P[1]);
                 else Logger.Warn("operator not found: " + P[1]);
             }
             case "setrole", "changerole" -> {
@@ -524,7 +524,7 @@ public final class CLI {
                     break;
                 }
                 OperatorRole SetRole = OperatorRole.FromString(P[2]);
-                if (Db.UpdateOperatorRole(P[1], SetRole)) Logger.Info("role updated: " + P[1] + " -> " + SetRole);
+                if (Database.UpdateOperatorRole(P[1], SetRole)) Logger.Info("role updated: " + P[1] + " -> " + SetRole);
                 else Logger.Warn("operator not found: " + P[1]);
             }
             case "passwd", "changepassword" -> {
@@ -540,7 +540,7 @@ public final class CLI {
                     Logger.Warn("password must be at least 8 characters");
                     break;
                 }
-                if (Db.UpdateOperatorPassword(P[1], P[2])) Logger.Info("password updated: " + P[1]);
+                if (Database.UpdateOperatorPassword(P[1], P[2])) Logger.Info("password updated: " + P[1]);
                 else Logger.Warn("operator not found: " + P[1]);
             }
             case "chat" -> ShowChat();
@@ -550,11 +550,11 @@ public final class CLI {
                     Logger.Info(Usage("ch"));
                     break;
                 }
-                if (Db == null) {
+                if (Database == null) {
                     Logger.Warn("ch requires a database — start with a DB or team mode");
                     break;
                 }
-                Db.SaveChatLog(OperatorName, P[1], BuildArgs(P, 2));
+                Database.SaveChatLog(OperatorName, P[1], BuildArgs(P, 2));
                 Logger.Custom("  %s→ %s%s %s%n", AnsiColor.Green, P[1], AnsiColor.Reset, BuildArgs(P, 2));
             }
             case "gc" -> {
@@ -562,18 +562,18 @@ public final class CLI {
                     Logger.Info(Usage("gc"));
                     break;
                 }
-                if (Db == null) {
+                if (Database == null) {
                     Logger.Warn("gc requires a database — start with a DB or team mode");
                     break;
                 }
                 String GcTarget = P[1].toLowerCase();
                 String GcMsg = BuildArgs(P, 2);
                 if (GcTarget.equals("all")) {
-                    Db.SaveChatLog(OperatorName, "all", GcMsg);
+                    Database.SaveChatLog(OperatorName, "all", GcMsg);
                 } else {
                     for (String Recipient : GcTarget.split(",")) {
                         String Trimmed = Recipient.trim();
-                        if (!Trimmed.isEmpty()) Db.SaveChatLog(OperatorName, Trimmed, GcMsg);
+                        if (!Trimmed.isEmpty()) Database.SaveChatLog(OperatorName, Trimmed, GcMsg);
                     }
                 }
                 Logger.Custom("  %s→ %s%s %s%n", AnsiColor.Green, GcTarget, AnsiColor.Reset, GcMsg);
@@ -802,7 +802,7 @@ public final class CLI {
         Logger.Custom("  %sEncrypted   %s%b%n", AnsiColor.Red, AnsiColor.White, S.IsEncrypted());
         Logger.Custom("  %smTLS        %s%b%n", AnsiColor.Red, AnsiColor.White, S.IsMtlsEnabled());
         Logger.Custom("  %sJoined      %s%s%n", AnsiColor.Red, AnsiColor.White, S.GetJoinedAt());
-        Logger.Custom("  %sNote        %s%s%n", AnsiColor.Red, AnsiColor.White, Db.GetAgentNote(Id));
+        Logger.Custom("  %sNote        %s%s%n", AnsiColor.Red, AnsiColor.White, Database.GetAgentNote(Id));
         Logger.Custom("%n");
     }
 
@@ -840,7 +840,7 @@ public final class CLI {
             return;
         }
         AddLog("[>] [" + OperatorName + "] session-" + SessionId + " » " + UserCommand, false);
-        CommandResult Result = new AgentCommandDispatcher(Server, Db, OperatorName).Dispatch(SessionId, UserCommand);
+        CommandResult Result = new AgentCommandDispatcher(Server, Database, OperatorName).Dispatch(SessionId, UserCommand);
         if (Result.Success()) Logger.Custom("%s%n", TerminalHelper.OutputBox(Result.Output()));
         else Logger.Error(Result.Output());
         Logger.Custom("%n");
@@ -852,7 +852,7 @@ public final class CLI {
             return;
         }
         AddLog("[BROADCAST] [" + OperatorName + "] > " + Ids.size() + " agents » " + UserCommand, true);
-        Map<Integer, CommandResult> Results = new AgentCommandDispatcher(Server, Db, OperatorName).BroadcastDispatch(Ids, UserCommand);
+        Map<Integer, CommandResult> Results = new AgentCommandDispatcher(Server, Database, OperatorName).BroadcastDispatch(Ids, UserCommand);
         Results.forEach((SessionId, Result) -> Logger.Custom("  %s[session-%d] %s%s%n", Result.Success() ? AnsiColor.Green : AnsiColor.Red, SessionId, Result.Success() ? "[OK] " : "[FAIL] ", Result.Output() + AnsiColor.Reset));
     }
 
@@ -862,12 +862,12 @@ public final class CLI {
             return;
         }
         AddLog("[BROADCAST-ALL] [" + OperatorName + "] > " + Server.GetSessions().Count() + " agents » " + UserCommand, true);
-        Map<Integer, CommandResult> Results = new AgentCommandDispatcher(Server, Db, OperatorName).BroadcastAllDispatch(UserCommand);
+        Map<Integer, CommandResult> Results = new AgentCommandDispatcher(Server, Database, OperatorName).BroadcastAllDispatch(UserCommand);
         Results.forEach((SessionId, Result) -> Logger.Custom("  %s[session-%d] %s%s%n", Result.Success() ? AnsiColor.Green : AnsiColor.Red, SessionId, Result.Success() ? "[OK] " : "[FAIL] ", Result.Output() + AnsiColor.Reset));
     }
 
     private void ShowCommandHistory(int AgentId, int Limit) {
-        List<Map<String, Object>> Hist = Db.GetCommandHistory(AgentId, Limit);
+        List<Map<String, Object>> Hist = Database.GetCommandHistory(AgentId, Limit);
         Logger.Custom("%s%n", TerminalHelper.Box("COMMAND HISTORY (last " + Limit + (AgentId > 0 ? " — session-" + AgentId : "") + ")"));
         Logger.Custom("%n");
         if (Hist.isEmpty()) {
@@ -886,7 +886,7 @@ public final class CLI {
     }
 
     private void ShowOperators() {
-        List<Map<String, Object>> Ops = Db.GetOperators();
+        List<Map<String, Object>> Ops = Database.GetOperators();
         Logger.Custom("%s%n", TerminalHelper.Box("OPERATORS (" + Ops.size() + ")"));
         Logger.Custom("%n");
         Logger.Custom("  %s%-18s %-14s %-30s %-20s%s%n", AnsiColor.Green, "USERNAME", "ROLE", "PERMISSIONS", "LAST SEEN", AnsiColor.Reset);
@@ -904,7 +904,7 @@ public final class CLI {
     }
 
     private void ShowChat() {
-        List<Map<String, Object>> Msgs = Db.GetChatLogs(100);
+        List<Map<String, Object>> Msgs = Database.GetChatLogs(100);
         Logger.Custom("%s%n", TerminalHelper.Box("CHAT MESSAGES"));
         Logger.Custom("%n");
         if (Msgs.isEmpty()) {
@@ -924,7 +924,7 @@ public final class CLI {
     }
 
     private void ShowChatHistory(int Limit) {
-        List<Map<String, Object>> Msgs = Db.GetChatLogs(Limit);
+        List<Map<String, Object>> Msgs = Database.GetChatLogs(Limit);
         Logger.Custom("%s%n", TerminalHelper.Box("CHAT HISTORY (DB — last " + Limit + ")"));
         Logger.Custom("%n");
         if (Msgs.isEmpty()) {
@@ -950,7 +950,7 @@ public final class CLI {
         } else if (Server != null && Server.IsRunning()) {
             Server.StopServer();
         }
-        Db.Close();
+        Database.Close();
         Logger.Shutdown();
         System.exit(0);
     }

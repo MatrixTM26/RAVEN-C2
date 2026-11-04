@@ -60,7 +60,7 @@ public final class ExportCommand {
     public ExportCommand(TeamDatabase Database, EventLog Log, String ExportDir) {
         this.Database  = Database;
         this.Log       = Log;
-        this.OutputDir = Paths.get(ExportDir != null && !ExportDir.isBlank() ? ExportDir : "exports");
+        this.OutputDir = Paths.get(ExportDir != null && !ExportDir.isBlank() ? ExportDir : ".");
     }
 
     public void Run(String TargetStr, String FormatStr) {

@@ -9,7 +9,6 @@ import java.util.Properties;
 
 public final class ServerConfig {
 
-    private static final String DefaultsResource  = "/config/raven-defaults.properties";
     private static final String UserConfigPath    = "config/server/raven.properties";
     private static final String OperatorConfigDir = "config/operator/operator.properties";
 
@@ -21,23 +20,11 @@ public final class ServerConfig {
     }
 
     public ServerConfig(String UserPath) {
-        LoadFromResource(DefaultsResource);
         LoadFromFile(UserPath);
         LoadFromFile(OperatorConfigDir);
         OperatorCfg = new OperatorConfig();
     }
 
-    private void LoadFromResource(String ResourcePath) {
-        try (InputStream ResourceStream = ServerConfig.class.getResourceAsStream(ResourcePath)) {
-            if (ResourceStream == null) {
-                Logger.Warn("Embedded defaults not found at " + ResourcePath + " — using empty config");
-                return;
-            }
-            Properties.load(ResourceStream);
-        } catch (IOException Exception) {
-            Logger.Warn("Could not load embedded defaults: " + Exception.getMessage());
-        }
-    }
 
     private void LoadFromFile(String Path) {
         File ConfigFile = new File(Path);
@@ -49,74 +36,79 @@ public final class ServerConfig {
         }
     }
 
-    private String  Str(String Key)  { return Properties.getProperty(Key, ""); }
-    private int     Num(String Key)  { try { return Integer.parseInt(Properties.getProperty(Key, "0").trim()); } catch (NumberFormatException Ignored) { return 0; } }
-    private long    Long(String Key) { try { return java.lang.Long.parseLong(Properties.getProperty(Key, "0").trim()); } catch (NumberFormatException Ignored) { return 0L; } }
-    private boolean Bool(String Key) { return Boolean.parseBoolean(Properties.getProperty(Key, "false").trim()); }
+    private String  StringProperty(String Key)  { return Properties.getProperty(Key, ""); }
+    private int     IntProperty(String Key)  { try { return Integer.parseInt(Properties.getProperty(Key, "0").trim()); } catch (NumberFormatException Ignored) { return 0; } }
+    private long    LongProperty(String Key) { try { return java.lang.Long.parseLong(Properties.getProperty(Key, "0").trim()); } catch (NumberFormatException Ignored) { return 0L; } }
+    private boolean BooleanProperty(String Key) { return Boolean.parseBoolean(Properties.getProperty(Key, "false").trim()); }
 
     public String Get(String Key)                  { return Properties.getProperty(Key); }
     public String Get(String Key, String Default)  { return Properties.getProperty(Key, Default); }
 
-    public String  GetServerHost()           { return Str("server.host"); }
-    public int     GetServerPort()           { return Num("server.port"); }
-    public String  GetServerMode()           { return Str("server.mode").toLowerCase(); }
-    public String  GetWebHost()              { return Str("web.host"); }
-    public int     GetWebPort()              { return Num("web.port"); }
-    public String  GetTemplateDir()          { return Str("web.template.dir"); }
-    public String  GetStaticDir()            { return Str("web.static.dir"); }
-    public int     GetBeaconPort()           { return Num("web.beacon.port"); }
-    public int     GetTeamServerPort()       { return Num("teamserver.port"); }
-    public String  GetTeamServerApiPrefix()  { String Value = Str("teamserver.api.prefix"); return Value.isEmpty() ? "/api" : Value; }
-    public String  GetDatabaseType()         { return Str("db.type").toLowerCase(); }
-    public String  GetDatabaseUrl()          { return Str("db.url"); }
-    public String  GetDatabaseName()         { return Str("db.name"); }
-    public String  GetDatabaseUser()         { return Str("db.user"); }
-    public String  GetDatabasePath()         { return Str("db.path"); }
-    public String  GetDatabasePassword()     { return Str("db.password"); }
-    public String  GetMongoUri()             { return Str("db.mongo.uri"); }
-    public String  GetMongoDbName()          { return Str("db.mongo.name"); }
-    public long    GetSleepIntervalMs()      { return Long("agent.sleep.interval"); }
-    public long    GetJitterMs()             { return Long("agent.jitter.ms"); }
-    public int     GetConnectionTimeout()    { return Num("agent.connection.timeout"); }
-    public int     GetCommandTimeout()       { return Num("agent.command.timeout"); }
-    public int     GetMaxConnections()       { return Num("agent.max.connections"); }
-    public int     GetBufferSize()           { return Num("agent.buffer.size"); }
-    public String  GetKeystorePath()         { return Str("cert.keystore.path"); }
-    public String  GetKeystoreType()         { return Str("cert.keystore.type"); }
-    public String  GetKeystorePassword()     { return Str("cert.keystore.password"); }
-    public String  GetTruststorePath()       { return Str("cert.truststore.path"); }
-    public String  GetTruststoreType()       { return Str("cert.truststore.type"); }
-    public String  GetTruststorePassword()   { return Str("cert.truststore.password"); }
-    public String  GetCaPath()               { return Str("cert.ca.path"); }
-    public String  GetCaType()               { return Str("cert.ca.type"); }
-    public String  GetCaPassword()           { return Str("cert.ca.password"); }
-    public String  GetAgentCertDir()         { return Str("cert.agent.dir"); }
-    public String  GetTlsProtocol()          { return Str("cert.tls.protocol"); }
-    public int     GetServerValidityDays()   { return Num("cert.server.validity.days"); }
-    public int     GetAgentValidityDays()    { return Num("cert.agent.validity.days"); }
-    public int     GetCaValidityDays()       { return Num("cert.ca.validity.days"); }
-    public String  GetDnCn()                 { return Str("cert.dn.cn"); }
-    public String  GetDnO()                  { return Str("cert.dn.o"); }
-    public String  GetDnOu()                 { return Str("cert.dn.ou"); }
-    public String  GetDnL()                  { return Str("cert.dn.l"); }
-    public String  GetDnSt()                 { return Str("cert.dn.st"); }
-    public String  GetDnC()                  { return Str("cert.dn.c"); }
-    public String  GetCaDnCn()               { return Str("cert.ca.dn.cn"); }
-    public String  GetCaDnO()                { return Str("cert.ca.dn.o"); }
-    public String  GetCaDnOu()               { return Str("cert.ca.dn.ou"); }
-    public String  GetCaDnL()                { return Str("cert.ca.dn.l"); }
-    public String  GetCaDnSt()               { return Str("cert.ca.dn.st"); }
-    public String  GetCaDnC()                { return Str("cert.ca.dn.c"); }
-    public String  GetLoggingLevel()         { return Str("logging.level").toUpperCase(); }
-    public boolean IsVerbose()               { return Bool("logging.verbose"); }
-    public int     GetMaxLogEntries()        { return Num("logging.max.entries"); }
-    public String  GetLogFile()              { return Str("logging.file"); }
-    public boolean IsFileLoggingEnabled()    { return Bool("logging.file.enabled"); }
-    public String  GetInterfaceMode()        { return Str("mode.interface").toLowerCase(); }
-    public String  GetExportDir()            { return Str("export.dir"); }
-    public String  GetAgentOutputDir()       { return Str("agent.output.dir"); }
-    public String  GetDownloadDir()          { return Str("agent.download.dir"); }
-    public boolean IsMtlsEnabled()           { String Mode = GetServerMode(); return Mode.equals("mtls") || Mode.equals("fmtls"); }
+    public String  GetServerHost()           { return StringProperty("server.host"); }
+    public int     GetServerPort()           { return IntProperty("server.port"); }
+    public String  GetServerMode()           { return StringProperty("server.mode").toLowerCase(); }
+    public String  GetWebHost()              { return StringProperty("web.host"); }
+    public int     GetWebPort()              { return IntProperty("web.port"); }
+    public String  GetTemplateDir()          { return StringProperty("web.template.dir"); }
+    public String  GetStaticDir()            { return StringProperty("web.static.dir"); }
+    public int     GetBeaconPort()           { return IntProperty("web.beacon.port"); }
+    public int     GetTeamServerPort()       { return IntProperty("teamserver.port"); }
+    public String  GetTeamServerApiPrefix()  { String Value = StringProperty("teamserver.api.prefix"); return Value.isEmpty() ? "/api" : Value; }
+    public String  GetDatabaseType()         { return StringProperty("db.type").toLowerCase(); }
+    public String  GetDatabaseUrl()          { return StringProperty("db.url"); }
+    public String  GetDatabaseName()         { return StringProperty("db.name"); }
+    public String  GetDatabaseUser()         { return StringProperty("db.user"); }
+    public String  GetDatabasePath()         { return StringProperty("db.path"); }
+    public String  GetDatabasePassword()     { return StringProperty("db.password"); }
+    public String  GetMongoUri()             { return StringProperty("db.mongo.uri"); }
+    public String  GetMongoDbName()          { return StringProperty("db.mongo.name"); }
+    public long    GetSleepIntervalMs()      { return LongProperty("agent.sleep.interval"); }
+    public long    GetJitterMs()             { return LongProperty("agent.jitter.ms"); }
+    public int     GetConnectionTimeout()    { return IntProperty("agent.connection.timeout"); }
+    public int     GetCommandTimeout()       { return IntProperty("agent.command.timeout"); }
+    public int     GetMaxConnections()       { return IntProperty("agent.max.connections"); }
+    public int     GetBufferSize()           { return IntProperty("agent.buffer.size"); }
+    public String  GetKeystorePath()         { return StringProperty("cert.keystore.path"); }
+    public String  GetKeystoreType()         { return StringProperty("cert.keystore.type"); }
+    public String  GetKeystorePassword()     { return StringProperty("cert.keystore.password"); }
+    public String  GetTruststorePath()       { return StringProperty("cert.truststore.path"); }
+    public String  GetTruststoreType()       { return StringProperty("cert.truststore.type"); }
+    public String  GetTruststorePassword()   { return StringProperty("cert.truststore.password"); }
+    public String  GetCaPath()               { return StringProperty("cert.ca.path"); }
+    public String  GetCaType()               { return StringProperty("cert.ca.type"); }
+    public String  GetCaPassword()           { return StringProperty("cert.ca.password"); }
+    public String  GetAgentCertDir()         { return StringProperty("cert.agent.dir"); }
+    public String  GetTlsProtocol()          { return StringProperty("cert.tls.protocol"); }
+    public int     GetServerValidityDays()   { return IntProperty("cert.server.validity.days"); }
+    public int     GetAgentValidityDays()    { return IntProperty("cert.agent.validity.days"); }
+    public int     GetCaValidityDays()       { return IntProperty("cert.ca.validity.days"); }
+    public String  GetDnCn()                 { return StringProperty("cert.dn.cn"); }
+    public String  GetDnO()                  { return StringProperty("cert.dn.o"); }
+    public String  GetDnOu()                 { return StringProperty("cert.dn.ou"); }
+    public String  GetDnL()                  { return StringProperty("cert.dn.l"); }
+    public String  GetDnSt()                 { return StringProperty("cert.dn.st"); }
+    public String  GetDnC()                  { return StringProperty("cert.dn.c"); }
+    public String  GetCaDnCn()               { return StringProperty("cert.ca.dn.cn"); }
+    public String  GetCaDnO()                { return StringProperty("cert.ca.dn.o"); }
+    public String  GetCaDnOu()               { return StringProperty("cert.ca.dn.ou"); }
+    public String  GetCaDnL()                { return StringProperty("cert.ca.dn.l"); }
+    public String  GetCaDnSt()               { return StringProperty("cert.ca.dn.st"); }
+    public String  GetCaDnC()                { return StringProperty("cert.ca.dn.c"); }
+    public String  GetLoggingLevel()         { return StringProperty("logging.level").toUpperCase(); }
+    public boolean IsVerbose()               { return BooleanProperty("logging.verbose"); }
+    public int     GetMaxLogEntries()        { return IntProperty("logging.max.entries"); }
+    public String  GetLogFile()              { return StringProperty("logging.file"); }
+    public boolean IsFileLoggingEnabled()    { return BooleanProperty("logging.file.enabled"); }
+    public String  GetInterfaceMode()        { return StringProperty("mode.interface").toLowerCase(); }
+    public String  GetExportDir()            { return StringProperty("export.dir"); }
+    public String  GetAgentOutputDir()       { return StringProperty("agent.output.dir"); }
+    public String  GetDownloadDir()          { return StringProperty("agent.download.dir"); }
+    public boolean IsMtlsEnabled()              { String Mode = GetServerMode(); return Mode.equals("mtls") || Mode.equals("fmtls"); }
+    public String  GetDatabaseFilename()        { String Value = StringProperty("db.filename"); return Value.isEmpty() ? GetDatabaseName() + ".db" : Value; }
+    public String  GetTeamServerConnectHost()   { String Value = StringProperty("teamserver.connect.host"); return Value.isEmpty() ? "127.0.0.1" : Value; }
+    public String[] GetTlsFallbackProtocols()  { String Value = StringProperty("cert.tls.fallback.protocols"); return Value.isEmpty() ? new String[]{"TLSv1.3","TLSv1.2"} : Value.split(","); }
+    public int     GetGuiSessionTimeout()       { return IntProperty("gui.session.timeout"); }
+    public int     GetGuiLogRetention()         { return IntProperty("gui.log.retention"); }
     public String  GetAdminUsername()        { return OperatorCfg.GetAdminUsername(); }
     public String  GetAdminPassword()        { return OperatorCfg.GetAdminPassword(); }
     public String  GetAdminRole()            { return OperatorCfg.GetAdminRole(); }

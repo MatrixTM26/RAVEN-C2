@@ -103,7 +103,7 @@ public final class Start {
                     Thread.currentThread().join();
                 }
                 case "teamserver-cli" -> {
-                    String TeamHost = Arg(Args, "-ts", "-thost", "127.0.0.1");
+                    String TeamHost = Arg(Args, "-ts", "-thost", Config.GetTeamServerConnectHost());
                     int    TeamPort = ParseInt(Arg(Args, "-tp", "-tport", String.valueOf(Config.GetTeamServerPort())), Config.GetTeamServerPort());
                     new com.raven.interfaces.TeamClient(Config, TeamHost, TeamPort).Run();
                 }

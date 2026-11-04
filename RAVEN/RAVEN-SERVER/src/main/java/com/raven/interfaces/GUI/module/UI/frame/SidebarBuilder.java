@@ -21,7 +21,7 @@ public final class SidebarBuilder {
     private static final double EXPANDED  = 210.0;
     private static final double COLLAPSED = 48.0;
 
-    private static final Map<String, String> NAV_ICONS = new LinkedHashMap<>() {{
+    private static final Map<String, String> NavigationIcons = new LinkedHashMap<>() {{
         put("Overview",       "");
         put("Sessions",       "");
         put("Terminal",       "");
@@ -110,7 +110,7 @@ public final class SidebarBuilder {
                 NavItemMapOut.put("__sec__" + Section, new HBox(SectionLabel));
                 Sidebar.getChildren().add(SectionLabel);
             }
-            Sidebar.getChildren().add(BuildNavItem(Page, NAV_ICONS.getOrDefault(Page, "■"), NavItemMapOut, OnNavigate));
+            Sidebar.getChildren().add(BuildNavItem(Page, NavigationIcons.getOrDefault(Page, "■"), NavItemMapOut, OnNavigate));
         });
 
         Sidebar.getChildren().add(BuildFlexSpacer());

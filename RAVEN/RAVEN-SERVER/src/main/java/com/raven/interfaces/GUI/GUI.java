@@ -341,18 +341,18 @@ public class GUI extends Application {
     private void HandleEvent(EventType Type, Map<String, Object> Data) {
         switch (Type) {
             case AgentConnected -> {
-                String Msg = "[+] [" + Data.get("Type") + "] SESSION-" + Data.get("ID") + ": " + Data.get("AgentName") + " (" + Data.get("OS") + ")";
-                Log(Msg);
-                if (OverviewCtrl != null) OverviewCtrl.AddActivity(true, Msg, Ts());
+                String ActivityMessage = "[+] [" + Data.get("Type") + "] SESSION-" + Data.get("ID") + ": " + Data.get("AgentName") + " (" + Data.get("OS") + ")";
+                Log(ActivityMessage);
+                if (OverviewCtrl != null) OverviewCtrl.AddActivity(true, ActivityMessage, Ts());
                 Platform.runLater(() -> {
                     if (SessMgr != null) SessMgr.Refresh();
                     UpdateOverviewStats();
                 });
             }
             case AgentDisconnected -> {
-                String Msg = "[-] SESSION-" + Data.get("ID") + " disconnected: " + Data.get("Reason");
-                Log(Msg);
-                if (OverviewCtrl != null) OverviewCtrl.AddActivity(false, Msg, Ts());
+                String ActivityMessage = "[-] SESSION-" + Data.get("ID") + " disconnected: " + Data.get("Reason");
+                Log(ActivityMessage);
+                if (OverviewCtrl != null) OverviewCtrl.AddActivity(false, ActivityMessage, Ts());
                 Platform.runLater(() -> {
                     if (SessMgr != null) SessMgr.Refresh();
                     UpdateOverviewStats();
@@ -368,17 +368,17 @@ public class GUI extends Application {
         OverviewCtrl.UpdateStats(Stats.getOrDefault("Total", 0), Stats.getOrDefault("RAVEN", 0), Stats.getOrDefault("METERPRETER", 0), Stats.getOrDefault("ReverseShell", 0));
     }
 
-    private void Log(String Msg) {
+    private void Log(String Message) {
         if (LogsCtrl != null) {
-            String Level = Msg.startsWith("[+]") ? "INFO" : Msg.startsWith("[!]") ? "ERROR" : Msg.startsWith("[-]") ? "WARN" : "INFO";
-            LogsCtrl.AppendEntry(Level, Msg);
+            String Level = Message.startsWith("[+]") ? "INFO" : Message.startsWith("[!]") ? "ERROR" : Message.startsWith("[-]") ? "WARN" : "INFO";
+            LogsCtrl.AppendEntry(Level, Message);
         }
-        if (SessionsCtrl != null) SessionsCtrl.AppendLog(Msg);
-        if (CmdCtrl != null) CmdCtrl.AppendOutput(Msg);
+        if (SessionsCtrl != null) SessionsCtrl.AppendLog(Message);
+        if (CmdCtrl != null) CmdCtrl.AppendOutput(Message);
     }
 
     private void StartUptimeThread() {
-        Thread T = new Thread(() -> {
+        Thread BackgroundThread = new Thread(() -> {
             while (!Thread.currentThread().isInterrupted()) {
                 try {
                     Thread.sleep(1000);
@@ -395,8 +395,8 @@ public class GUI extends Application {
                 }
             }
         });
-        T.setDaemon(true);
-        T.start();
+        BackgroundThread.setDaemon(true);
+        BackgroundThread.start();
     }
 
     private void LoadFonts() {
@@ -405,10 +405,10 @@ public class GUI extends Application {
         } catch (Exception Ignored) {}
     }
 
-    private void ShowAlert(Alert.AlertType Type, String Msg) {
-        Alert A = new Alert(Type, Msg);
-        A.setHeaderText(null);
-        A.showAndWait();
+    private void ShowAlert(Alert.AlertType Type, String Message) {
+        Alert AlertDialog = new Alert(Type, Message);
+        AlertDialog.setHeaderText(null);
+        AlertDialog.showAndWait();
     }
 
     private String Ts() {

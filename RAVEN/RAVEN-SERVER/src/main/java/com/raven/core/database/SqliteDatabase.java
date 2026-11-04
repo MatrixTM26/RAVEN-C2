@@ -17,7 +17,7 @@ public final class SqliteDatabase extends TeamDatabase {
     public SqliteDatabase(ServerConfig Config) throws Exception {
         this.AdminUsername = Config.GetAdminUsername();
         String DbDir  = Config.GetDatabasePath();
-        String DbFile = DbDir + "/raven.db";
+        String DbFile = DbDir + "/" + Config.GetDatabaseFilename();
         Files.createDirectories(Paths.get(DbDir));
         Class.forName("org.sqlite.JDBC");
         Conn = DriverManager.getConnection("jdbc:sqlite:" + DbFile);

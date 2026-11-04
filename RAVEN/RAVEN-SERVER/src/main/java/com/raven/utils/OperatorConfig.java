@@ -21,22 +21,12 @@ public final class OperatorConfig {
 
     public OperatorConfig(String Path) {
         this.FilePath = Path;
-        LoadFromResource();
         LoadFromFile(Path);
     }
 
     OperatorConfig(Properties Merged) {
         this.FilePath = RavenConstants.OperatorConfigPath;
-        LoadFromResource();
         Merged.forEach((Key, Value) -> Props.setProperty(Key.toString(), Value.toString()));
-    }
-
-    private void LoadFromResource() {
-        try (InputStream Stream = OperatorConfig.class.getResourceAsStream(RavenConstants.OperatorDefaultsResource)) {
-            if (Stream != null) Props.load(Stream);
-        } catch (IOException Exception) {
-            Logger.Warn("OperatorConfig: could not load embedded defaults — " + Exception.getMessage());
-        }
     }
 
     private void LoadFromFile(String Path) {
@@ -68,21 +58,21 @@ public final class OperatorConfig {
     }
 
     public String GetFilePath()              { return FilePath; }
-    public String GetOperatorName()          { return Str("operator.name"); }
-    public String GetOperatorRole()          { return Str("operator.role").toUpperCase(); }
-    public String GetTheme()                 { return Str("operator.theme"); }
-    public String GetPromptColor()           { return Str("operator.prompt.color"); }
-    public boolean IsOutputBoxEnabled()      { return Bool("operator.output.box"); }
-    public boolean IsTimestampEnabled()      { return Bool("operator.output.timestamp"); }
-    public int GetSessionLogLimit()          { return Num("operator.session.log.limit"); }
-    public int GetHistoryLimit()             { return Num("operator.history.limit"); }
-    public boolean IsAutoReconnect()         { return Bool("operator.auto.reconnect"); }
-    public boolean IsChatNotifyEnabled()     { return Bool("operator.chat.notify"); }
-    public String GetTimezone()              { return Str("operator.timezone"); }
-    public String GetDateFormat()            { return Str("operator.date.format"); }
-    public String GetInteractiveExitCmd()    { return Str("operator.interactive.exit"); }
-    public boolean IsBroadcastConfirm()      { return Bool("operator.broadcast.confirm"); }
-    public boolean IsSelfDestructConfirm()   { return Bool("operator.selfdestruct.confirm"); }
+    public String GetOperatorName()          { return StringProperty("operator.name"); }
+    public String GetOperatorRole()          { return StringProperty("operator.role").toUpperCase(); }
+    public String GetTheme()                 { return StringProperty("operator.theme"); }
+    public String GetPromptColor()           { return StringProperty("operator.prompt.color"); }
+    public boolean IsOutputBoxEnabled()      { return BooleanProperty("operator.output.box"); }
+    public boolean IsTimestampEnabled()      { return BooleanProperty("operator.output.timestamp"); }
+    public int GetSessionLogLimit()          { return IntProperty("operator.session.log.limit"); }
+    public int GetHistoryLimit()             { return IntProperty("operator.history.limit"); }
+    public boolean IsAutoReconnect()         { return BooleanProperty("operator.auto.reconnect"); }
+    public boolean IsChatNotifyEnabled()     { return BooleanProperty("operator.chat.notify"); }
+    public String GetTimezone()              { return StringProperty("operator.timezone"); }
+    public String GetDateFormat()            { return StringProperty("operator.date.format"); }
+    public String GetInteractiveExitCmd()    { return StringProperty("operator.interactive.exit"); }
+    public boolean IsBroadcastConfirm()      { return BooleanProperty("operator.broadcast.confirm"); }
+    public boolean IsSelfDestructConfirm()   { return BooleanProperty("operator.selfdestruct.confirm"); }
 
     public void SetOperatorName(String Name) { Props.setProperty("operator.name", Name); }
     public void SetOperatorRole(String Role) { Props.setProperty("operator.role", Role.toUpperCase()); }
@@ -91,9 +81,9 @@ public final class OperatorConfig {
     public String  Get(String Key, String Default) { return Props.getProperty(Key, Default); }
     public void Put(String Key, String Value)    { Props.setProperty(Key, Value); }
 
-    public String GetAdminUsername()  { return Str("admin.username"); }
-    public String GetAdminPassword()  { return Str("admin.password"); }
-    public String GetAdminRole()      { String Role = Str("admin.role").toUpperCase(); return Role.isEmpty() ? "SUPER" : Role; }
+    public String GetAdminUsername()  { return StringProperty("admin.username"); }
+    public String GetAdminPassword()  { return StringProperty("admin.password"); }
+    public String GetAdminRole()      { String Role = StringProperty("admin.role").toUpperCase(); return Role.isEmpty() ? "SUPER" : Role; }
 
     public Map<String, String> ToMap() {
         Map<String, String> M = new LinkedHashMap<>();
@@ -101,12 +91,12 @@ public final class OperatorConfig {
         return M;
     }
 
-    private String Str(String Key)  { return Props.getProperty(Key, ""); }
-    private int    Num(String Key)  {
+    private String StringProperty(String Key)  { return Props.getProperty(Key, ""); }
+    private int    IntProperty(String Key)  {
         try { return Integer.parseInt(Props.getProperty(Key, "0").trim()); }
         catch (NumberFormatException Ignored) { return 0; }
     }
-    private boolean Bool(String Key) {
+    private boolean BooleanProperty(String Key) {
         return Boolean.parseBoolean(Props.getProperty(Key, "false").trim());
     }
 }

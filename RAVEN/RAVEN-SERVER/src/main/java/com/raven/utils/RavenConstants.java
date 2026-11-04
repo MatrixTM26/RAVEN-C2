@@ -12,7 +12,6 @@ public final class RavenConstants {
 
     public static final String ServerConfigPath         = "config/server/raven.properties";
     public static final String OperatorConfigPath       = "config/operator/operator.properties";
-    public static final String OperatorDefaultsResource = "/config/operator-defaults.properties";
     public static final String ProfilesDir              = "config/profiles";
     public static final String ProfileExt               = ".profile";
     public static final String DefaultProfile           = "default";

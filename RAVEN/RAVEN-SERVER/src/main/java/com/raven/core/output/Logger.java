@@ -18,7 +18,7 @@ public final class Logger {
     }
 
     private static volatile Level   CurrentLevel = Level.INFO;
-    private static volatile boolean Verbose      = false;
+    private static volatile boolean VerboseEnabled = false;
     private static volatile boolean FileEnabled  = false;
     private static volatile String  LogFilePath  = "logs/raven.log";
     private static volatile int     MaxEntries   = 1000;
@@ -30,7 +30,7 @@ public final class Logger {
 
     public static void Configure(String LevelName, boolean IsVerbose, boolean EnableFile, String FilePath, int MaxEnt) {
         CurrentLevel = ParseLevel(LevelName);
-        Verbose      = IsVerbose;
+        VerboseEnabled = IsVerbose;
         FileEnabled  = EnableFile;
         LogFilePath  = FilePath;
         MaxEntries   = MaxEnt;
@@ -110,17 +110,9 @@ public final class Logger {
         Emit(Level.DEBUG, "DEBUG", AnsiColor.Magenta, Message, Args);
     }
 
-    public static void Success(String Message, Object... Args) {
-        Emit(Level.INFO, "OK", AnsiColor.Green, Message, Args);
-    }
-
-    public static void Ok(String Message, Object... Args) {
-        Emit(Level.INFO, "OK", AnsiColor.Green, Message, Args);
-    }
-
-    public static void Verbose(String Message, Object... Args) {
-        if (!Verbose) return;
-        Emit(Level.VERBOSE, "TRACE", AnsiColor.Dim, Message, Args);
+        public static void Verbose(String Message, Object... Args) {
+        if (!VerboseEnabled) return;
+        Emit(Level.VERBOSE, "VERBOSE", AnsiColor.Dim, Message, Args);
     }
 
     public static void Custom(String Text) {

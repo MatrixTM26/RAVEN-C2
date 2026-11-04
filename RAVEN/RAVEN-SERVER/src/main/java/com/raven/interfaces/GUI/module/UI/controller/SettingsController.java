@@ -49,9 +49,11 @@ public class SettingsController {
 
     @FXML
     private void OnReset() {
-        if (Config != null) BindConfig(Config);
-        TimeoutField.setText("300");
-        LogRetField.setText("5000");
+        if (Config != null) {
+            BindConfig(Config);
+            TimeoutField.setText(String.valueOf(Config.GetGuiSessionTimeout()));
+            LogRetField.setText(String.valueOf(Config.GetGuiLogRetention()));
+        }
         if (NotifSessionController  != null) NotifSessionController.SetOn(true);
         if (NotifDropController     != null) NotifDropController.SetOn(true);
         if (NotifTransferController != null) NotifTransferController.SetOn(false);

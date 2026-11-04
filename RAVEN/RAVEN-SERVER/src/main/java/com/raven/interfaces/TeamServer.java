@@ -1,6 +1,7 @@
 package com.raven.interfaces;
 
 import com.google.gson.Gson;
+import com.raven.core.command.AgentCommandDispatcher;
 import com.raven.core.command.ExportCommand;
 import com.raven.core.database.TeamDatabase;
 import com.raven.core.database.TeamDatabase.OperatorRole;
@@ -14,6 +15,9 @@ import com.raven.interfaces.APP.api.AuthApi.TokenInfo;
 import com.raven.interfaces.APP.core.HttpRouter;
 import com.raven.interfaces.APP.shared.HttpHelper;
 import com.raven.interfaces.APP.shared.PathResolver;
+import com.raven.utils.OperatorConfig;
+import com.raven.utils.ProfileManager;
+import com.raven.utils.RavenConstants;
 import com.raven.utils.ServerConfig;
 import com.raven.utils.SystemHelper;
 import com.sun.net.httpserver.*;
@@ -38,7 +42,7 @@ public final class TeamServer {
 
     private final ServerConfig Config;
     private final ListenerMode Mode;
-    private final TeamDatabase Db;
+    private final TeamDatabase Database;
     private final EventLog Log;
     private final ExportCommand Export;
     private final PathResolver PathResolver;
@@ -56,9 +60,9 @@ public final class TeamServer {
     public TeamServer(ServerConfig Config, ListenerMode Mode) {
         this.Config      = Config;
         this.Mode        = Mode;
-        this.Db          = TeamDatabase.Connect(Config);
+        this.Database    = TeamDatabase.Connect(Config);
         this.Log         = new EventLog(Config.GetMaxLogEntries());
-        this.Export      = new ExportCommand(Db, Log, Config.GetExportDir());
+        this.Export      = new ExportCommand(Database, Log, Config.GetExportDir());
         this.PathResolver = new PathResolver(TeamServer.class);
     }
 
@@ -207,7 +211,7 @@ public final class TeamServer {
         if (Server != null) Server.StopServer();
         if (HttpSrv != null) HttpSrv.stop(1);
         if (WebPanelHttpServer != null) WebPanelHttpServer.stop(0);
-        Db.Close();
+        Database.Close();
         Logger.Shutdown();
     }
 
@@ -260,6 +264,14 @@ public final class TeamServer {
         RegisterRouteOn(Target, "/api/tasks",                    this::ApiTasks,                true);
         RegisterRouteOn(Target, "/api/team/chat/send",           this::ApiChatSend,             true);
         RegisterRouteOn(Target, "/api/team/chat/messages",       this::ApiChatMessages,         true);
+        RegisterRouteOn(Target, "/api/profiles",               this::ApiProfilesList,     true);
+        RegisterRouteOn(Target, "/api/profiles/get",             this::ApiProfilesGet,      true);
+        RegisterRouteOn(Target, "/api/profiles/active",          this::ApiProfilesActive,   true);
+        RegisterRouteOn(Target, "/api/profiles/load",            this::ApiProfilesLoad,     true);
+        RegisterRouteOn(Target, "/api/profiles/save",            this::ApiProfilesSave,     true);
+        RegisterRouteOn(Target, "/api/profiles/delete",          this::ApiProfilesDelete,   true);
+        RegisterRouteOn(Target, "/api/profiles/clone",           this::ApiProfilesClone,    true);
+        RegisterRouteOn(Target, "/api/profiles/edit",            this::ApiProfilesEdit,     true);
         RegisterRouteOn(Target, "/api/team/chat/logs",           this::ApiChatLogs,             true);
     }
 
@@ -318,9 +330,104 @@ public final class TeamServer {
     private String Str(Map<String, Object> DataMap, String Key, String Default) { return HttpHelper.Str(DataMap, Key, Default); }
     private int    Num(Map<String, Object> DataMap, String Key, int Default)    { return HttpHelper.Num(DataMap, Key, Default); }
 
+    private String ApiProfilesList(HttpExchange Exchange, TokenInfo Token) throws Exception {
+        java.util.List<Map<String, Object>> Result = new java.util.ArrayList<>();
+        for (String Name : ProfileManager.ListProfiles()) {
+            java.util.Optional<ProfileManager.Profile> Entry = ProfileManager.Load(Name);
+            Map<String, Object> Row = new java.util.LinkedHashMap<>();
+            Row.put("Name",        Name);
+            Row.put("Description", Entry.isPresent() ? Entry.get().Description() : "");
+            Row.put("Modified",    Entry.isPresent() ? Entry.get().CreatedAt()   : "");
+            Result.add(Row);
+        }
+        return HttpHelper.Json(Map.of("Profiles", Result));
+    }
+
+    private String ApiProfilesGet(HttpExchange Exchange, TokenInfo Token) throws Exception {
+        Map<String, Object> Body = Body(Exchange);
+        String Name = Str(Body, "Name", "");
+        if (Name.isEmpty()) { SetStatus(400); return HttpHelper.Json(Map.of("Error", "Name required")); }
+        java.util.Optional<ProfileManager.Profile> Profile = ProfileManager.Load(Name);
+        if (Profile.isEmpty()) { SetStatus(404); return HttpHelper.Json(Map.of("Error", "Profile not found: " + Name)); }
+        Map<String, Object> Settings = new java.util.LinkedHashMap<>();
+        Profile.get().Settings().forEach((K, V) -> Settings.put(K.toString(), V.toString()));
+        return HttpHelper.Json(Map.of("Name", Name, "Settings", Settings));
+    }
+
+    private String ApiProfilesActive(HttpExchange Exchange, TokenInfo Token) throws Exception {
+        java.util.Optional<ProfileManager.Profile> Profile = ProfileManager.Load(RavenConstants.DefaultProfile);
+        Map<String, Object> Settings = new java.util.LinkedHashMap<>();
+        if (Profile.isPresent()) Profile.get().Settings().forEach((K, V) -> Settings.put(K.toString(), V.toString()));
+        return HttpHelper.Json(Map.of("Name", RavenConstants.DefaultProfile, "Settings", Settings));
+    }
+
+    private String ApiProfilesLoad(HttpExchange Exchange, TokenInfo Token) throws Exception {
+        Map<String, Object> Body = Body(Exchange);
+        String Name = Str(Body, "Name", "");
+        if (Name.isEmpty()) { SetStatus(400); return HttpHelper.Json(Map.of("Error", "Name required")); }
+        java.util.Optional<ProfileManager.Profile> Profile = ProfileManager.Load(Name);
+        if (Profile.isEmpty()) { SetStatus(404); return HttpHelper.Json(Map.of("Error", "Profile not found: " + Name)); }
+        Map<String, Object> Settings = new java.util.LinkedHashMap<>();
+        Profile.get().Settings().forEach((K, V) -> Settings.put(K.toString(), V.toString()));
+        AddLog("INFO", "Profile loaded: " + Name + " by " + Token.Username());
+        return HttpHelper.Json(Map.of("Success", true, "Name", Name, "Settings", Settings));
+    }
+
+    private String ApiProfilesSave(HttpExchange Exchange, TokenInfo Token) throws Exception {
+        Map<String, Object> Body = Body(Exchange);
+        String Name        = Str(Body, "Name", "");
+        String Description = Str(Body, "Description", "");
+        if (Name.isEmpty()) { SetStatus(400); return HttpHelper.Json(Map.of("Error", "Name required")); }
+        OperatorConfig Current = new OperatorConfig();
+        Map<String, String> Settings = new java.util.LinkedHashMap<>(Current.ToMap());
+        boolean Ok = ProfileManager.Save(Name, Settings, Description);
+        if (!Ok) { SetStatus(500); return HttpHelper.Json(Map.of("Error", "Failed to save profile")); }
+        AddLog("INFO", "Profile saved: " + Name + " by " + Token.Username());
+        return HttpHelper.Json(Map.of("Success", true, "Name", Name));
+    }
+
+    private String ApiProfilesDelete(HttpExchange Exchange, TokenInfo Token) throws Exception {
+        Map<String, Object> Body = Body(Exchange);
+        String Name = Str(Body, "Name", "");
+        if (Name.isEmpty()) { SetStatus(400); return HttpHelper.Json(Map.of("Error", "Name required")); }
+        boolean Ok = ProfileManager.Delete(Name);
+        if (!Ok) { SetStatus(404); return HttpHelper.Json(Map.of("Error", "Profile not found or cannot delete: " + Name)); }
+        AddLog("INFO", "Profile deleted: " + Name + " by " + Token.Username());
+        return HttpHelper.Json(Map.of("Success", true));
+    }
+
+    private String ApiProfilesClone(HttpExchange Exchange, TokenInfo Token) throws Exception {
+        Map<String, Object> Body = Body(Exchange);
+        String Source = Str(Body, "Source", "");
+        String Target = Str(Body, "Target", "");
+        if (Source.isEmpty() || Target.isEmpty()) { SetStatus(400); return HttpHelper.Json(Map.of("Error", "Source and Target required")); }
+        boolean Ok = ProfileManager.Clone(Source, Target);
+        if (!Ok) { SetStatus(404); return HttpHelper.Json(Map.of("Error", "Source profile not found: " + Source)); }
+        AddLog("INFO", "Profile cloned: " + Source + " -> " + Target + " by " + Token.Username());
+        return HttpHelper.Json(Map.of("Success", true));
+    }
+
+    private String ApiProfilesEdit(HttpExchange Exchange, TokenInfo Token) throws Exception {
+        Map<String, Object> Body = Body(Exchange);
+        String Name  = Str(Body, "Name", "");
+        String Key   = Str(Body, "Key", "");
+        String Value = Str(Body, "Value", "");
+        if (Name.isEmpty() || Key.isEmpty()) { SetStatus(400); return HttpHelper.Json(Map.of("Error", "Name and Key required")); }
+        java.util.Optional<ProfileManager.Profile> Existing = ProfileManager.Load(Name);
+        if (Existing.isEmpty()) { SetStatus(404); return HttpHelper.Json(Map.of("Error", "Profile not found: " + Name)); }
+        Map<String, String> Settings = new java.util.LinkedHashMap<>();
+        Existing.get().Settings().forEach((K, V) -> Settings.put(K.toString(), V.toString()));
+        Settings.put(Key, Value);
+        boolean Ok = ProfileManager.Save(Name, Settings, Existing.get().Description());
+        if (!Ok) { SetStatus(500); return HttpHelper.Json(Map.of("Error", "Failed to save profile")); }
+        AddLog("INFO", "Profile edited: " + Name + "." + Key + " by " + Token.Username());
+        return HttpHelper.Json(Map.of("Success", true));
+    }
+
+
     private void AddLog(String Level, String Message) {
         Log.Add(Level, Message, false);
-        Db.SaveLog("[" + Level + "] " + Message);
+        Database.SaveLog("[" + Level + "] " + Message);
     }
 
     private void AddLog(String Message) {
@@ -340,16 +447,16 @@ public final class TeamServer {
             SetStatus(400);
             return HttpHelper.Json(Map.of("Error", "Username and Password required"));
         }
-        if (!Db.ValidateOperator(Username, Password)) {
+        if (!Database.ValidateOperator(Username, Password)) {
             SetStatus(401);
             return HttpHelper.Json(Map.of("Error", "Invalid credentials"));
         }
-        OperatorRole Role = Db.GetOperatorRole(Username);
-        Db.UpdateLastSeen(Username);
+        OperatorRole Role = Database.GetOperatorRole(Username);
+        Database.UpdateLastSeen(Username);
         String Token = UUID.randomUUID().toString().replace("-", "");
         Tokens.put(Token, new TokenInfo(Username, Role, System.currentTimeMillis() + TokenTtlMs));
         Logger.Info("[AUTH] Login: " + Username + " [" + Role + "]");
-        AddLog("AUTH", "Login: " + Username + " [" + Role + "]");
+        AddLog("INFO", "Login: " + Username + " [" + Role + "]");
         return HttpHelper.Json(Map.of(
             "Token",       Token,
             "Role",        Role.name(),
@@ -363,7 +470,7 @@ public final class TeamServer {
         String Header = Exchange.getRequestHeaders().getFirst("Authorization");
         if (Header != null && Header.startsWith("Bearer ")) {
             Tokens.remove(Header.substring(7));
-            AddLog("AUTH", "Logout: " + Token.Username());
+            AddLog("INFO", "Logout: " + Token.Username());
         }
         return HttpHelper.Json(Map.of("Success", true));
     }
@@ -381,7 +488,7 @@ public final class TeamServer {
         Response.put("Role",           Token.Role().name());
         Response.put("Permissions",    Token.Role().PermissionString());
         Response.put("DbType",         Config.GetDatabaseType());
-        Response.put("DbOnline",       Db.IsConnected());
+        Response.put("DbOnline",       Database.IsConnected());
         Response.put("SleepIntervalMs", Config.GetSleepIntervalMs());
         Response.put("JitterMs",        Config.GetJitterMs());
         Response.put("LogCount",        Log.Count());
@@ -459,7 +566,7 @@ public final class TeamServer {
             Agent.put("Encrypted",   AgentSession.IsEncrypted());
             Agent.put("MtlsEnabled", AgentSession.IsMtlsEnabled());
             Agent.put("SessionKey",  AgentSession.GetSessionKey());
-            Agent.put("Note",        Db.GetAgentNote(AgentSession.GetId()));
+            Agent.put("Note",        Database.GetAgentNote(AgentSession.GetId()));
             Agents.add(Agent);
         }
         return HttpHelper.Json(Map.of("Agents", Agents, "Count", Agents.size()));
@@ -492,12 +599,12 @@ public final class TeamServer {
             SetStatus(400);
             return HttpHelper.Json(Map.of("Error", "AgentId required"));
         }
-        Db.SetAgentNote(AgentId, Note);
+        Database.SetAgentNote(AgentId, Note);
         return HttpHelper.Json(Map.of("Success", true));
     }
 
     private String ApiAgentNotesAll(HttpExchange Exchange, TokenInfo Token) {
-        return HttpHelper.Json(Map.of("Notes", Db.GetAllAgentNotes()));
+        return HttpHelper.Json(Map.of("Notes", Database.GetAllAgentNotes()));
     }
 
     private String ApiCmdExec(HttpExchange Exchange, TokenInfo Token) throws Exception {
@@ -516,11 +623,10 @@ public final class TeamServer {
             SetStatus(400);
             return HttpHelper.Json(Map.of("Error", "AgentId and Command required"));
         }
-        AddLog("CMD", "[" + Token.Username() + "] session-" + AgentId + " » " + Command);
-        String[] Result = Server.ExecuteCommand(AgentId, Command);
-        boolean Ok = Boolean.parseBoolean(Result[0]);
-        Db.SaveCommandLog(AgentId, Token.Username(), Command, Result[1], Ok);
-        return HttpHelper.Json(Map.of("Success", Ok, "Output", Result[1], "Command", Command));
+        AgentCommandDispatcher Dispatcher = new AgentCommandDispatcher(Server, Database, Token.Username());
+        AgentCommandDispatcher.CommandResult Result = Dispatcher.Dispatch(AgentId, Command);
+        AddLog("INFO", "[CMD] [" + Token.Username() + "] session-" + AgentId + " » " + Command);
+        return HttpHelper.Json(Map.of("Success", Result.Success(), "Output", Result.Output(), "Command", Command));
     }
 
     private String ApiCmdBroadcast(HttpExchange Exchange, TokenInfo Token) throws Exception {
@@ -547,8 +653,13 @@ public final class TeamServer {
             SetStatus(400);
             return HttpHelper.Json(Map.of("Error", "AgentIds required"));
         }
-        AddLog("CMD", "[BROADCAST] [" + Token.Username() + "] > " + Ids.size() + " agents » " + Command);
-        return BuildBroadcastResult(Server.BroadcastCommand(Ids, Command), Token.Username(), Command);
+        AgentCommandDispatcher BroadcastDispatcher = new AgentCommandDispatcher(Server, Database, Token.Username());
+        Map<Integer, AgentCommandDispatcher.CommandResult> BroadcastResults = BroadcastDispatcher.BroadcastDispatch(Ids, Command);
+        AddLog("INFO", "[CMD] [BROADCAST] [" + Token.Username() + "] > " + Ids.size() + " agents » " + Command);
+        Map<String, Object> BroadcastOut = new java.util.LinkedHashMap<>();
+        for (Map.Entry<Integer, AgentCommandDispatcher.CommandResult> Entry : BroadcastResults.entrySet())
+            BroadcastOut.put(String.valueOf(Entry.getKey()), Map.of("Success", Entry.getValue().Success(), "Output", Entry.getValue().Output()));
+        return HttpHelper.Json(Map.of("Success", true, "Results", BroadcastOut, "Count", BroadcastResults.size()));
     }
 
     private String ApiCmdBroadcastAll(HttpExchange Exchange, TokenInfo Token) throws Exception {
@@ -565,19 +676,15 @@ public final class TeamServer {
             SetStatus(400);
             return HttpHelper.Json(Map.of("Error", "Command required"));
         }
-        AddLog("CMD", "[BROADCAST-ALL] [" + Token.Username() + "] > " + Server.GetSessions().Count() + " agents » " + Command);
-        return BuildBroadcastResult(Server.BroadcastAll(Command), Token.Username(), Command);
+        AgentCommandDispatcher AllDispatcher = new AgentCommandDispatcher(Server, Database, Token.Username());
+        Map<Integer, AgentCommandDispatcher.CommandResult> AllResults = AllDispatcher.BroadcastAllDispatch(Command);
+        AddLog("INFO", "[CMD] [BROADCAST-ALL] [" + Token.Username() + "] > " + Server.GetSessions().Count() + " agents » " + Command);
+        Map<String, Object> AllOut = new java.util.LinkedHashMap<>();
+        for (Map.Entry<Integer, AgentCommandDispatcher.CommandResult> Entry : AllResults.entrySet())
+            AllOut.put(String.valueOf(Entry.getKey()), Map.of("Success", Entry.getValue().Success(), "Output", Entry.getValue().Output()));
+        return HttpHelper.Json(Map.of("Success", true, "Results", AllOut, "Count", AllResults.size()));
     }
 
-    private String BuildBroadcastResult(Map<Integer, String[]> Results, String Operator, String Command) {
-        Map<String, Object> Out = new LinkedHashMap<>();
-        for (Map.Entry<Integer, String[]> Entry : Results.entrySet()) {
-            boolean Ok = Boolean.parseBoolean(Entry.getValue()[0]);
-            Out.put(String.valueOf(Entry.getKey()), Map.of("Success", Ok, "Output", Entry.getValue()[1]));
-            Db.SaveCommandLog(Entry.getKey(), Operator, Command, Entry.getValue()[1], Ok);
-        }
-        return HttpHelper.Json(Map.of("Success", true, "Results", Out, "Count", Results.size()));
-    }
 
     private String ApiCmdScreenshot(HttpExchange Exchange, TokenInfo Token) throws Exception {
         if (!Token.Role().CanExecute()) { SetStatus(403); return HttpHelper.Json(Map.of("Error", "OPERATOR or ADMIN role required")); }
@@ -585,7 +692,7 @@ public final class TeamServer {
         if (AgentId == 0 || Server == null) { SetStatus(400); return HttpHelper.Json(Map.of("Error", "AgentId required")); }
         String[] Result = Server.ExecuteCommand(AgentId, "screenshot");
         boolean Ok = Boolean.parseBoolean(Result[0]);
-        Db.SaveCommandLog(AgentId, Token.Username(), "screenshot", Result[1], Ok);
+        Database.SaveCommandLog(AgentId, Token.Username(), "screenshot", Result[1], Ok);
         return HttpHelper.Json(Map.of("Success", Ok, "Output", Result[1]));
     }
 
@@ -597,7 +704,7 @@ public final class TeamServer {
         if (AgentId == 0 || Path.isEmpty()) { SetStatus(400); return HttpHelper.Json(Map.of("Error", "AgentId and Path required")); }
         String[] Result = Server.ExecuteCommand(AgentId, "download " + Path);
         boolean Ok = Boolean.parseBoolean(Result[0]);
-        Db.SaveCommandLog(AgentId, Token.Username(), "download " + Path, Result[1], Ok);
+        Database.SaveCommandLog(AgentId, Token.Username(), "download " + Path, Result[1], Ok);
         return HttpHelper.Json(Map.of("Success", Ok, "Output", Result[1]));
     }
 
@@ -610,7 +717,7 @@ public final class TeamServer {
         if (AgentId == 0 || LocalPath.isEmpty()) { SetStatus(400); return HttpHelper.Json(Map.of("Error", "AgentId and LocalPath required")); }
         String[] Result = Server.ExecuteCommand(AgentId, "upload " + LocalPath + (RemotePath.isEmpty() ? "" : " " + RemotePath));
         boolean Ok = Boolean.parseBoolean(Result[0]);
-        Db.SaveCommandLog(AgentId, Token.Username(), "upload " + LocalPath, Result[1], Ok);
+        Database.SaveCommandLog(AgentId, Token.Username(), "upload " + LocalPath, Result[1], Ok);
         return HttpHelper.Json(Map.of("Success", Ok, "Output", Result[1]));
     }
 
@@ -654,12 +761,12 @@ public final class TeamServer {
 
     private String ApiCmdHistory(HttpExchange Exchange, TokenInfo Token) throws Exception {
         Map<String, Object> RequestBody = Body(Exchange);
-        return HttpHelper.Json(Map.of("History", Db.GetCommandHistory(Num(RequestBody, "AgentId", 0), Num(RequestBody, "Limit", 100))));
+        return HttpHelper.Json(Map.of("History", Database.GetCommandHistory(Num(RequestBody, "AgentId", 0), Num(RequestBody, "Limit", 100))));
     }
 
     private String ApiSessionHistory(HttpExchange Exchange, TokenInfo Token) throws Exception {
         int Limit = Num(Body(Exchange), "Limit", 100);
-        return HttpHelper.Json(Map.of("Sessions", Db.GetSessionHistory(Math.min(Limit, 1000))));
+        return HttpHelper.Json(Map.of("Sessions", Database.GetSessionHistory(Math.min(Limit, 1000))));
     }
 
     private String ApiLogs(HttpExchange Exchange, TokenInfo Token) {
@@ -677,7 +784,7 @@ public final class TeamServer {
 
     private String ApiOpList(HttpExchange Exchange, TokenInfo Token) {
         if (!Token.Role().CanManage()) { SetStatus(403); return HttpHelper.Json(Map.of("Error", "ADMIN role required")); }
-        return HttpHelper.Json(Map.of("Operators", Db.GetOperators()));
+        return HttpHelper.Json(Map.of("Operators", Database.GetOperators()));
     }
 
     private String ApiOpCreate(HttpExchange Exchange, TokenInfo Token) throws Exception {
@@ -690,8 +797,8 @@ public final class TeamServer {
         if (Password.length() < 8) { SetStatus(400); return HttpHelper.Json(Map.of("Error", "Password must be at least 8 characters")); }
         OperatorRole NewRole = OperatorRole.FromString(Role);
         if (NewRole == OperatorRole.SUPER && !Token.Role().IsSuperAdmin()) { SetStatus(403); return HttpHelper.Json(Map.of("Error", "Only SUPER can create SUPER")); }
-        if (!Db.CreateOperator(Username, Password, NewRole)) { SetStatus(409); return HttpHelper.Json(Map.of("Error", "Username already exists")); }
-        AddLog("TEAM", "Created operator: " + Username + " [" + NewRole + "] by " + Token.Username());
+        if (!Database.CreateOperator(Username, Password, NewRole)) { SetStatus(409); return HttpHelper.Json(Map.of("Error", "Username already exists")); }
+        AddLog("INFO", "Created operator: " + Username + " [" + NewRole + "] by " + Token.Username());
         return HttpHelper.Json(Map.of("Success", true, "Username", Username, "Role", NewRole.name()));
     }
 
@@ -700,9 +807,9 @@ public final class TeamServer {
         String Username = Str(Body(Exchange), "Username", "");
         if (Username.isEmpty()) { SetStatus(400); return HttpHelper.Json(Map.of("Error", "Username required")); }
         if (Username.equalsIgnoreCase(Config.GetAdminUsername())) { SetStatus(403); return HttpHelper.Json(Map.of("Error", "Cannot delete admin")); }
-        if (!Db.DeleteOperator(Username)) { SetStatus(404); return HttpHelper.Json(Map.of("Error", "Operator not found")); }
+        if (!Database.DeleteOperator(Username)) { SetStatus(404); return HttpHelper.Json(Map.of("Error", "Operator not found")); }
         Tokens.entrySet().removeIf(Entry -> Entry.getValue().Username().equals(Username));
-        AddLog("TEAM", "Deleted operator: " + Username + " by " + Token.Username());
+        AddLog("INFO", "Deleted operator: " + Username + " by " + Token.Username());
         return HttpHelper.Json(Map.of("Success", true));
     }
 
@@ -714,8 +821,8 @@ public final class TeamServer {
         if (Username.isEmpty() || Role.isEmpty()) { SetStatus(400); return HttpHelper.Json(Map.of("Error", "Username and Role required")); }
         if (Username.equalsIgnoreCase(Config.GetAdminUsername())) { SetStatus(403); return HttpHelper.Json(Map.of("Error", "Cannot change admin role")); }
         OperatorRole NewRole = OperatorRole.FromString(Role);
-        if (!Db.UpdateOperatorRole(Username, NewRole)) { SetStatus(404); return HttpHelper.Json(Map.of("Error", "Operator not found")); }
-        AddLog("TEAM", "Role updated: " + Username + " → " + NewRole + " by " + Token.Username());
+        if (!Database.UpdateOperatorRole(Username, NewRole)) { SetStatus(404); return HttpHelper.Json(Map.of("Error", "Operator not found")); }
+        AddLog("INFO", "Role updated: " + Username + " -> " + NewRole + " by " + Token.Username());
         return HttpHelper.Json(Map.of("Success", true));
     }
 
@@ -726,8 +833,8 @@ public final class TeamServer {
         String Password = Str(RequestBody, "Password", "");
         if (Username.isEmpty() || Password.isEmpty()) { SetStatus(400); return HttpHelper.Json(Map.of("Error", "Username and Password required")); }
         if (Password.length() < 8) { SetStatus(400); return HttpHelper.Json(Map.of("Error", "Password must be at least 8 characters")); }
-        if (!Db.UpdateOperatorPassword(Username, Password)) { SetStatus(404); return HttpHelper.Json(Map.of("Error", "Operator not found")); }
-        AddLog("TEAM", "Password changed: " + Username + " by " + Token.Username());
+        if (!Database.UpdateOperatorPassword(Username, Password)) { SetStatus(404); return HttpHelper.Json(Map.of("Error", "Operator not found")); }
+        AddLog("INFO", "Password changed: " + Username + " by " + Token.Username());
         return HttpHelper.Json(Map.of("Success", true));
     }
 
@@ -741,7 +848,7 @@ public final class TeamServer {
             .filter(Entry -> Entry.getValue().Username().equals(Username))
             .peek(Entry -> Tokens.remove(Entry.getKey()))
             .count();
-        AddLog("TEAM", "Kicked: " + Username + " (tokens revoked=" + RevokedCount + ") by " + Token.Username());
+        AddLog("INFO", "Kicked: " + Username + " (tokens revoked=" + RevokedCount + ") by " + Token.Username());
         return HttpHelper.Json(Map.of("Success", true, "TokensRevoked", RevokedCount));
     }
 
@@ -834,13 +941,13 @@ public final class TeamServer {
         String Message = Str(RequestBody, "Message", "");
         String To      = Str(RequestBody, "To", "all");
         if (Message.isEmpty()) { SetStatus(400); return HttpHelper.Json(Map.of("Error", "Message required")); }
-        Db.SaveChatLog(Token.Username(), To, Message);
+        Database.SaveChatLog(Token.Username(), To, Message);
         return HttpHelper.Json(Map.of("Success", true));
     }
 
     private String ApiChatMessages(HttpExchange Exchange, TokenInfo Token) throws Exception {
         String Username = Token.Username();
-        List<Map<String, Object>> AllMessages = Db.GetChatLogs(500);
+        List<Map<String, Object>> AllMessages = Database.GetChatLogs(500);
         List<Map<String, Object>> Visible = new ArrayList<>();
         for (Map<String, Object> Message : AllMessages) {
             String To   = Message.getOrDefault("To", "all").toString();
@@ -858,21 +965,21 @@ public final class TeamServer {
 
     private String ApiChatLogs(HttpExchange Exchange, TokenInfo Token) throws Exception {
         int Limit = Num(Body(Exchange), "Limit", 100);
-        return HttpHelper.Json(Map.of("Logs", Db.GetChatLogs(Math.min(Limit, 1000))));
+        return HttpHelper.Json(Map.of("Logs", Database.GetChatLogs(Math.min(Limit, 1000))));
     }
 
     private void OnEvent(EventType Type, Map<String, Object> Data) {
         switch (Type) {
             case ServerStarted -> AddLog("INFO", "Listener started on " + Data.get("Host") + ":" + Data.get("Port") + " [" + Data.get("Mode") + "]");
             case AgentConnected -> {
-                AddLog("SESSION", "[+] session-" + Data.get("ID") + " [" + Data.get("Type") + "] " + Data.get("User") + "@" + Data.get("Hostname") + " " + Data.get("OS") + " key=" + Data.get("SessionKey"));
-                Db.SaveSessionEvent(Data, "connected");
+                AddLog("INFO", "session-" + Data.get("ID") + " connected [" + Data.get("Type") + "] " + Data.get("User") + "@" + Data.get("Hostname") + " " + Data.get("OS") + " key=" + Data.get("SessionKey"));
+                Database.SaveSessionEvent(Data, "connected");
             }
             case AgentDisconnected -> {
-                AddLog("SESSION", "[-] session-" + Data.get("ID") + " disconnected: " + Data.get("Reason"));
-                Db.SaveSessionEvent(Data, "disconnected");
+                AddLog("WARN", "session-" + Data.get("ID") + " disconnected: " + Data.get("Reason"));
+                Database.SaveSessionEvent(Data, "disconnected");
             }
-            case AgentRemoved -> AddLog("SESSION", "[-] session-" + Data.get("ID") + " removed");
+            case AgentRemoved -> AddLog("WARN", "session-" + Data.get("ID") + " removed");
             case Error         -> AddLog("ERROR", Data.get("Message").toString());
         }
     }

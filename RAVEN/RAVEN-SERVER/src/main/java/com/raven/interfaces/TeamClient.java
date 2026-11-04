@@ -26,9 +26,9 @@ import java.util.Map;
 
 public final class TeamClient {
 
-    private static final String PROMPT_TOP = AnsiColor.Red + "┌──{" + AnsiColor.White + "RAVEN-CLIENT" + AnsiColor.Red + "}" + AnsiColor.Reset;
-    private static final String PROMPT_BOTTOM = AnsiColor.Red + "└─" + AnsiColor.White + ">>" + AnsiColor.Reset + " ";
-    private static final String INDENT = "  ";
+    private static final String PromptTop = AnsiColor.Red + "┌──{" + AnsiColor.White + "RAVEN-CLIENT" + AnsiColor.Red + "}" + AnsiColor.Reset;
+    private static final String PromptBottom = AnsiColor.Red + "└─" + AnsiColor.White + ">>" + AnsiColor.Reset + " ";
+    private static final String Indent = "  ";
 
     private final ServerConfig Config;
     private final String TsHost;
@@ -50,7 +50,7 @@ public final class TeamClient {
         this.TsHost = TsHost;
         this.TsPort = TsPort;
         this.Http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
-        PromptManager.SetPrompt(PROMPT_TOP + "\n" + PROMPT_BOTTOM);
+        PromptManager.SetPrompt(PromptTop + "\n" + PromptBottom);
     }
 
     public void Run() {
@@ -75,7 +75,7 @@ public final class TeamClient {
             }
         }
         WipeCredentials();
-        Logger.Ok("Disconnected from TeamServer");
+        Logger.Info("Disconnected from TeamServer");
         System.exit(0);
     }
 
@@ -390,9 +390,9 @@ public final class TeamClient {
             }
             case "stats" -> {
                 try {
-                    Map<String, Object> R = Get("/api/agents");
+                    Map<String, Object> Response = Get("/api/agents");
                     @SuppressWarnings("unchecked")
-                    List<Map<String, Object>> Agents = (List<Map<String, Object>>) R.getOrDefault("Agents", new ArrayList<>());
+                    List<Map<String, Object>> Agents = (List<Map<String, Object>>) Response.getOrDefault("Agents", new ArrayList<>());
                     Logger.Custom("%s%n", TerminalHelper.Box("SESSION STATS"));
                     Logger.Custom("%n");
                     long Raw   = Agents.stream().filter(A -> "ReverseShell".equals(A.getOrDefault("Type", ""))).count();
@@ -407,12 +407,12 @@ public final class TeamClient {
             }
             case "tasks" -> {
                 try {
-                    Map<String, Object> R = Get("/api/tasks");
+                    Map<String, Object> Response = Get("/api/tasks");
                     @SuppressWarnings("unchecked")
-                    List<Map<String, Object>> Tasks = (List<Map<String, Object>>) R.getOrDefault("Tasks", new ArrayList<>());
+                    List<Map<String, Object>> Tasks = (List<Map<String, Object>>) Response.getOrDefault("Tasks", new ArrayList<>());
                     Logger.Custom("%s%n", TerminalHelper.Box("PENDING TASKS (" + Tasks.size() + ")"));
                     Logger.Custom("%n");
-                    if (Tasks.isEmpty()) { Logger.Info(INDENT + "no pending tasks"); Logger.Custom("%n"); break; }
+                    if (Tasks.isEmpty()) { Logger.Info(Indent + "no pending tasks"); Logger.Custom("%n"); break; }
                     for (Map<String, Object> T : Tasks)
                         Logger.Custom("  [%s] session-%s  %s%n", T.getOrDefault("Queued", "?"), T.getOrDefault("AgentId", "?"), T.getOrDefault("Command", "?"));
                     Logger.Custom("%n");
@@ -428,43 +428,43 @@ public final class TeamClient {
                     Map<String, Object> Body = new LinkedHashMap<>();
                     Body.put("Username", AddUser); Body.put("Password", AddPass);
                     Body.put("Role", AddRole); Body.put("Operator", OperatorName);
-                    Map<String, Object> R = Post("/api/team/operators/create", Body);
-                    if (R.containsKey("Error")) Logger.Error(R.get("Error").toString());
-                    else Logger.Ok("operator created: " + P[1] + " [" + AddRole + "]");
+                    Map<String, Object> Response = Post("/api/team/operators/create", Body);
+                    if (Response.containsKey("Error")) Logger.Error(Response.get("Error").toString());
+                    else Logger.Info("operator created: " + P[1] + " [" + AddRole + "]");
                 } catch (Exception Ex) { Logger.Error(Ex.getMessage()); }
             }
             case "delopt" -> {
                 if (P.length < 2) { Logger.Warn("usage: delopt <user>"); break; }
                 try {
-                    Map<String, Object> R = Post("/api/team/operators/delete", Map.of("Username", P[1], "Operator", OperatorName));
-                    if (R.containsKey("Error")) Logger.Error(R.get("Error").toString());
-                    else Logger.Ok("operator deleted: " + P[1]);
+                    Map<String, Object> Response = Post("/api/team/operators/delete", Map.of("Username", P[1], "Operator", OperatorName));
+                    if (Response.containsKey("Error")) Logger.Error(Response.get("Error").toString());
+                    else Logger.Info("operator deleted: " + P[1]);
                 } catch (Exception Ex) { Logger.Error(Ex.getMessage()); }
             }
             case "setrole" -> {
                 if (P.length < 3) { Logger.Warn("usage: setrole <user> <ROLE>"); break; }
                 try {
                     Map<String, Object> Body = Map.of("Username", P[1], "Role", P[2].toUpperCase(), "Operator", OperatorName);
-                    Map<String, Object> R = Post("/api/team/operators/role", Body);
-                    if (R.containsKey("Error")) Logger.Error(R.get("Error").toString());
-                    else Logger.Ok("role updated: " + P[1] + " → " + P[2].toUpperCase());
+                    Map<String, Object> Response = Post("/api/team/operators/role", Body);
+                    if (Response.containsKey("Error")) Logger.Error(Response.get("Error").toString());
+                    else Logger.Info("role updated: " + P[1] + " → " + P[2].toUpperCase());
                 } catch (Exception Ex) { Logger.Error(Ex.getMessage()); }
             }
             case "passwd" -> {
                 if (P.length < 3) { Logger.Warn("usage: passwd <user> <newpass>"); break; }
                 try {
                     Map<String, Object> Body = Map.of("Username", P[1], "Password", P[2], "Operator", OperatorName);
-                    Map<String, Object> R = Post("/api/team/operators/password", Body);
-                    if (R.containsKey("Error")) Logger.Error(R.get("Error").toString());
-                    else Logger.Ok("password changed: " + P[1]);
+                    Map<String, Object> Response = Post("/api/team/operators/password", Body);
+                    if (Response.containsKey("Error")) Logger.Error(Response.get("Error").toString());
+                    else Logger.Info("password changed: " + P[1]);
                 } catch (Exception Ex) { Logger.Error(Ex.getMessage()); }
             }
             case "kick" -> {
                 if (P.length < 2) { Logger.Warn("usage: kick <user>"); break; }
                 try {
-                    Map<String, Object> R = Post("/api/team/operators/kick", Map.of("Username", P[1], "Operator", OperatorName));
-                    if (R.containsKey("Error")) Logger.Error(R.get("Error").toString());
-                    else Logger.Ok("operator kicked: " + P[1]);
+                    Map<String, Object> Response = Post("/api/team/operators/kick", Map.of("Username", P[1], "Operator", OperatorName));
+                    if (Response.containsKey("Error")) Logger.Error(Response.get("Error").toString());
+                    else Logger.Info("operator kicked: " + P[1]);
                 } catch (Exception Ex) { Logger.Error(Ex.getMessage()); }
             }
             case "start" -> {
@@ -489,16 +489,16 @@ public final class TeamClient {
                     Body.put("Host", ListenHost);
                     Body.put("Port", ListenPort);
                     Body.put("Mode", ListenMode);
-                    Map<String, Object> R = Post("/api/server/start", Body);
-                    if (R.containsKey("Error")) Logger.Error(R.get("Error").toString());
-                    else Logger.Ok("listener started on " + ListenHost + ":" + ListenPort + " [" + ListenMode + "]");
+                    Map<String, Object> Response = Post("/api/server/start", Body);
+                    if (Response.containsKey("Error")) Logger.Error(Response.get("Error").toString());
+                    else Logger.Info("listener started on " + ListenHost + ":" + ListenPort + " [" + ListenMode + "]");
                 } catch (Exception Ex) { Logger.Error(Ex.getMessage()); }
             }
             case "stop" -> {
                 try {
-                    Map<String, Object> R = Post("/api/server/stop", Map.of());
-                    if (R.containsKey("Error")) Logger.Error(R.get("Error").toString());
-                    else Logger.Ok("listener stopped");
+                    Map<String, Object> Response = Post("/api/server/stop", Map.of());
+                    if (Response.containsKey("Error")) Logger.Error(Response.get("Error").toString());
+                    else Logger.Info("listener stopped");
                 } catch (Exception Ex) { Logger.Error(Ex.getMessage()); }
             }
             case "webstart" -> {
@@ -515,27 +515,34 @@ public final class TeamClient {
                     }
                 }
                 try {
-                    Map<String, Object> R = Post("/api/server/webpanel/start",
+                    Map<String, Object> Response = Post("/api/server/webpanel/start",
                         Map.of("Host", WHost, "Port", WPort, "Operator", OperatorName));
-                    if (R.containsKey("Error")) Logger.Error(R.get("Error").toString());
-                    else Logger.Ok("web panel started → " + R.getOrDefault("URL", ""));
+                    if (Response.containsKey("Error")) Logger.Error(Response.get("Error").toString());
+                    else Logger.Info("web panel started → " + Response.getOrDefault("URL", ""));
                 } catch (Exception Ex) { Logger.Error(Ex.getMessage()); }
             }
             case "webstop" -> {
                 try {
-                    Map<String, Object> R = Post("/api/server/webpanel/stop", Map.of("Operator", OperatorName));
-                    if (R.containsKey("Error")) Logger.Error(R.get("Error").toString());
-                    else Logger.Ok("web panel stopped");
+                    Map<String, Object> Response = Post("/api/server/webpanel/stop", Map.of("Operator", OperatorName));
+                    if (Response.containsKey("Error")) Logger.Error(Response.get("Error").toString());
+                    else Logger.Info("web panel stopped");
                 } catch (Exception Ex) { Logger.Error(Ex.getMessage()); }
             }
             case "webstatus" -> {
                 try {
-                    Map<String, Object> R = Get("/api/server/webpanel/status");
-                    String Running = Boolean.parseBoolean(R.getOrDefault("Running", "false").toString()) ? "running" : "stopped";
+                    Map<String, Object> Response = Get("/api/server/webpanel/status");
+                    String Running = Boolean.parseBoolean(Response.getOrDefault("Running", "false").toString()) ? "running" : "stopped";
                     Logger.Custom("  %sWeb panel %s%s%n", AnsiColor.Red, AnsiColor.White, Running);
-                    if (R.containsKey("URL")) Logger.Custom("  %sURL       %s%s%n", AnsiColor.Red, AnsiColor.White, R.get("URL"));
+                    if (Response.containsKey("URL")) Logger.Custom("  %sURL       %s%s%n", AnsiColor.Red, AnsiColor.White, Response.get("URL"));
                 } catch (Exception Ex) { Logger.Error(Ex.getMessage()); }
             }
+            case "profiles"     -> ShowProfiles();
+            case "profile"      -> ShowProfile(P.length > 1 ? P[1] : null);
+            case "loadprofile"  -> { if (P.length < 2) Logger.Warn("usage: loadprofile <name>"); else LoadProfile(P[1]); }
+            case "saveprofile"  -> { if (P.length < 2) Logger.Warn("usage: saveprofile <name> [description]"); else SaveProfile(P[1], P.length > 2 ? String.join(" ", java.util.Arrays.copyOfRange(P, 2, P.length)) : ""); }
+            case "delprofile"   -> { if (P.length < 2) Logger.Warn("usage: delprofile <name>"); else DeleteProfile(P[1]); }
+            case "cloneprofile" -> { if (P.length < 3) Logger.Warn("usage: cloneprofile <source> <target>"); else CloneProfile(P[1], P[2]); }
+            case "editprofile"  -> { if (P.length < 4) Logger.Warn("usage: editprofile <name> <key> <value>"); else EditProfile(P[1], P[2], P.length > 3 ? String.join(" ", java.util.Arrays.copyOfRange(P, 3, P.length)) : P[3]); }
             default -> {
                 Logger.Error("unknown command: " + Cmd);
                 Logger.Info("type 'help' for available commands");
@@ -544,10 +551,10 @@ public final class TeamClient {
     }
 
     private void InteractiveSession(int AgentId) {
-        String OldPrompt = PROMPT_BOTTOM;
+        String OldPrompt = PromptTop + "\n" + PromptBottom;
         String SessionPrompt = AnsiColor.Red + "[session-" + AgentId + "] " + AnsiColor.White + ">> " + AnsiColor.Reset;
         PromptManager.SetPrompt(SessionPrompt);
-        Logger.Custom(INDENT + "%sInteractive shell — session-%d%s  (type 'back' to return)%n%n",
+        Logger.Custom(Indent + "%sInteractive shell — session-%d%s  (type 'back' to return)%n%n",
             AnsiColor.White, AgentId, AnsiColor.Reset);
         while (Running) {
             try {
@@ -568,21 +575,21 @@ public final class TeamClient {
             }
         }
         PromptManager.SetPrompt(OldPrompt);
-        Logger.Custom(INDENT + "%s← returned to TeamClient%s%n%n", AnsiColor.Green, AnsiColor.Reset);
+        Logger.Custom(Indent + "%s← returned to TeamClient%s%n%n", AnsiColor.Green, AnsiColor.Reset);
     }
 
     private boolean Login() {
         Logger.Custom("%n");
         Logger.Custom("%s%n", TerminalHelper.Box("TEAMCLIENT — CONNECT TO TEAMSERVER"));
         Logger.Custom("%n");
-        Logger.Custom(INDENT + "%sTeamServer:%s %s:%d%n%n", AnsiColor.Red, AnsiColor.White, TsHost, TsPort, AnsiColor.Reset);
+        Logger.Custom(Indent + "%sTeamServer:%s %s:%d%n%n", AnsiColor.Red, AnsiColor.White, TsHost, TsPort, AnsiColor.Reset);
         try {
             Get("/api/server/status");
         } catch (java.net.ConnectException Ex) {
             Logger.Error("connection refused — " + TsHost + ":" + TsPort);
             Logger.Custom("%n");
-            Logger.Custom(INDENT + "TeamClient requires a running TeamServer backend.%n");
-            Logger.Custom(INDENT + "Start with: java -jar raven.jar -TS -tp %d%n%n", TsPort);
+            Logger.Custom(Indent + "TeamClient requires a running TeamServer backend.%n");
+            Logger.Custom(Indent + "Start with: java -jar raven.jar -TS -tp %d%n%n", TsPort);
             return false;
         } catch (Exception Ex) {
             Logger.Error("TeamServer unreachable: " + Ex.getMessage());
@@ -591,11 +598,11 @@ public final class TeamClient {
         BufferedReader Reader = new BufferedReader(new InputStreamReader(System.in));
         for (int Try = 0; Try < 3; Try++) {
             try {
-                Logger.Custom(INDENT + "%sUsername:%s ", AnsiColor.White, AnsiColor.Reset);
+                Logger.Custom(Indent + "%sUsername:%s ", AnsiColor.White, AnsiColor.Reset);
                 System.out.flush();
                 String User = Reader.readLine();
                 if (User == null || User.isBlank()) return false;
-                Logger.Custom(INDENT + "%sPassword:%s ", AnsiColor.White, AnsiColor.Reset);
+                Logger.Custom(Indent + "%sPassword:%s ", AnsiColor.White, AnsiColor.Reset);
                 System.out.flush();
                 char[] PassChars = System.console() != null
                     ? System.console().readPassword()
@@ -621,8 +628,8 @@ public final class TeamClient {
                 System.arraycopy(PassChars, 0, StoredPassword, 0, PassChars.length);
                 LastEventTimestamp = java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
                 Logger.Custom("%n");
-                Logger.Ok("Welcome, " + OperatorName + " [" + OperatorRoleValue + "]");
-                Logger.Custom(INDENT + "%sConnected to TeamServer at %s:%d%s%n%n", AnsiColor.White, TsHost, TsPort, AnsiColor.Reset);
+                Logger.Info("Welcome, " + OperatorName + " [" + OperatorRoleValue + "]");
+                Logger.Custom(Indent + "%sConnected to TeamServer at %s:%d%s%n%n", AnsiColor.White, TsHost, TsPort, AnsiColor.Reset);
                 return true;
             } catch (Exception Ex) {
                 Logger.Error(Ex.getMessage());
@@ -663,32 +670,32 @@ public final class TeamClient {
     private void ShowHelp() {
         Logger.Custom("%s%n", TerminalHelper.Box("TEAMCLIENT COMMANDS"));
         Logger.Custom("%n");
-        Logger.Custom(INDENT + "%sConnected as:%s %s[%s / %s]%s  Server: %s%s:%d%s%n%n", AnsiColor.Red, AnsiColor.White, AnsiColor.Green, OperatorName != null ? OperatorName : "—", OperatorRoleValue != null ? OperatorRoleValue.name() : "—", AnsiColor.White, AnsiColor.Red, TsHost, TsPort, AnsiColor.Reset);
+        Logger.Custom(Indent + "%sConnected as:%s %s[%s / %s]%s  Server: %s%s:%d%s%n%n", AnsiColor.Red, AnsiColor.White, AnsiColor.Green, OperatorName != null ? OperatorName : "—", OperatorRoleValue != null ? OperatorRoleValue.name() : "—", AnsiColor.White, AnsiColor.Red, TsHost, TsPort, AnsiColor.Reset);
         for (Category Cat : Category.values()) {
             List<CommandDef> Cmds = CommandRegistry.ByCategory(Cat);
             if (Cmds.isEmpty()) continue;
-            Logger.Custom(INDENT + "%s%s%s%n", AnsiColor.Red, Cat.name(), AnsiColor.Reset);
-            for (CommandDef Def : Cmds) Logger.Custom(INDENT + "  %s%-42s%s %s%n", AnsiColor.White, Def.Usage(), AnsiColor.Reset, Def.Description());
+            Logger.Custom(Indent + "%s%s%s%n", AnsiColor.Red, Cat.name(), AnsiColor.Reset);
+            for (CommandDef Def : Cmds) Logger.Custom(Indent + "  %s%-42s%s %s%n", AnsiColor.White, Def.Usage(), AnsiColor.Reset, Def.Description());
             Logger.Custom("%n");
         }
     }
 
     private void ShowSessions() {
         try {
-            Map<String, Object> R = Get("/api/agents");
+            Map<String, Object> Response = Get("/api/agents");
             @SuppressWarnings("unchecked")
-            List<Map<String, Object>> Agents = (List<Map<String, Object>>) R.getOrDefault("Agents", new ArrayList<>());
+            List<Map<String, Object>> Agents = (List<Map<String, Object>>) Response.getOrDefault("Agents", new ArrayList<>());
             Logger.Custom("%s%n", TerminalHelper.Box("ACTIVE SESSIONS (" + Agents.size() + ")"));
             Logger.Custom("%n");
             if (Agents.isEmpty()) {
-                Logger.Info(INDENT + "no active sessions");
+                Logger.Info(Indent + "no active sessions");
                 Logger.Custom("%n");
                 return;
             }
-            Logger.Custom(INDENT + "%s%-5s %-14s %-16s %-14s %-10s %-10s %s%s%n", AnsiColor.Red, "ID", "NAME", "IP", "TYPE", "OS", "USER", "KEY", AnsiColor.Reset);
+            Logger.Custom(Indent + "%s%-5s %-14s %-16s %-14s %-10s %-10s %s%s%n", AnsiColor.Red, "ID", "NAME", "IP", "TYPE", "OS", "USER", "KEY", AnsiColor.Reset);
             Logger.Custom("%s%n", TerminalHelper.Divider());
             for (Map<String, Object> A : Agents) {
-                Logger.Custom(INDENT + "%s#%-4s %-14s %-16s %-14s %-10s %-10s %s%s%n", AnsiColor.White, ((Number) A.getOrDefault("ID", 0.0)).intValue(), TerminalHelper.Truncate(A.getOrDefault("AgentName", "?").toString(), 14), TerminalHelper.Truncate(A.getOrDefault("AgentIP", "?").toString(), 16), A.getOrDefault("Type", "?"), TerminalHelper.Truncate(A.getOrDefault("OS", "?").toString(), 10), TerminalHelper.Truncate(A.getOrDefault("User", "?").toString(), 10), A.getOrDefault("SessionKey", "—"), AnsiColor.Reset);
+                Logger.Custom(Indent + "%s#%-4s %-14s %-16s %-14s %-10s %-10s %s%s%n", AnsiColor.White, ((Number) A.getOrDefault("ID", 0.0)).intValue(), TerminalHelper.Truncate(A.getOrDefault("AgentName", "?").toString(), 14), TerminalHelper.Truncate(A.getOrDefault("AgentIP", "?").toString(), 16), A.getOrDefault("Type", "?"), TerminalHelper.Truncate(A.getOrDefault("OS", "?").toString(), 10), TerminalHelper.Truncate(A.getOrDefault("User", "?").toString(), 10), A.getOrDefault("SessionKey", "—"), AnsiColor.Reset);
             }
             Logger.Custom("%n");
         } catch (Exception Ex) {
@@ -698,9 +705,9 @@ public final class TeamClient {
 
     private void ShowSessionInfo(int Id) {
         try {
-            Map<String, Object> R = Get("/api/agents");
+            Map<String, Object> Response = Get("/api/agents");
             @SuppressWarnings("unchecked")
-            List<Map<String, Object>> Agents = (List<Map<String, Object>>) R.getOrDefault("Agents", new ArrayList<>());
+            List<Map<String, Object>> Agents = (List<Map<String, Object>>) Response.getOrDefault("Agents", new ArrayList<>());
             Map<String, Object> A = Agents.stream()
                 .filter(X -> ((Number) X.getOrDefault("ID", -1.0)).intValue() == Id)
                 .findFirst()
@@ -711,7 +718,7 @@ public final class TeamClient {
             }
             Logger.Custom("%s%n", TerminalHelper.Box("SESSION INFO — #" + Id));
             Logger.Custom("%n");
-            A.forEach((K, V) -> Logger.Custom(INDENT + "%s%-14s%s %s%n", AnsiColor.Red, K, AnsiColor.White, V));
+            A.forEach((K, V) -> Logger.Custom(Indent + "%s%-14s%s %s%n", AnsiColor.Red, K, AnsiColor.White, V));
             Logger.Custom("%s%n", AnsiColor.Reset);
         } catch (Exception Ex) {
             Logger.Error(Ex.getMessage());
@@ -720,25 +727,25 @@ public final class TeamClient {
 
     private void ShowStatus() {
         try {
-            Map<String, Object> R = Get("/api/server/status");
-            if (R.containsKey("Error")) {
-                Logger.Error("status: " + R.get("Error"));
+            Map<String, Object> Response = Get("/api/server/status");
+            if (Response.containsKey("Error")) {
+                Logger.Error("status: " + Response.get("Error"));
                 return;
             }
             Logger.Custom("%s%n", TerminalHelper.Box("SERVER STATUS"));
             Logger.Custom("%n");
-            Logger.Custom(INDENT + "%sStatus    %s%s%s%n", AnsiColor.Red, AnsiColor.Green, R.getOrDefault("Status", "?"), AnsiColor.Reset);
-            Logger.Custom(INDENT + "%sMode      %s%s%n", AnsiColor.Red, AnsiColor.White, R.getOrDefault("Mode", "?").toString().toUpperCase());
-            Logger.Custom(INDENT + "%sAddress   %s%s:%d%n", AnsiColor.Red, AnsiColor.White, R.getOrDefault("Host", "?"), ((Number) R.getOrDefault("Port", 0.0)).intValue());
-            Logger.Custom(INDENT + "%sUptime    %s%s%n", AnsiColor.Red, AnsiColor.White, R.getOrDefault("Uptime", "?"));
-            Logger.Custom(INDENT + "%sSessions  %s%d%n", AnsiColor.Red, AnsiColor.White, ((Number) R.getOrDefault("Agents", 0.0)).intValue());
-            long SleepMs  = ((Number) R.getOrDefault("SleepIntervalMs", 5000.0)).longValue();
-            long JitterMs = ((Number) R.getOrDefault("JitterMs", 1000.0)).longValue();
-            Logger.Custom(INDENT + "%sSleep     %s%ds ± %dms%n", AnsiColor.Red, AnsiColor.White, SleepMs / 1000, JitterMs);
-            String DbType   = R.getOrDefault("DbType", "none").toString();
-            boolean DbUp    = Boolean.parseBoolean(R.getOrDefault("DbOnline", "false").toString());
-            Logger.Custom(INDENT + "%sDB        %s%s (%s)%n", AnsiColor.Red, AnsiColor.White, DbUp ? "connected" : "offline", DbType);
-            Logger.Custom(INDENT + "%sServer    %shttp://%s:%d%s%n%n", AnsiColor.Red, AnsiColor.White, TsHost, TsPort, AnsiColor.Reset);
+            Logger.Custom(Indent + "%sStatus    %s%s%s%n", AnsiColor.Red, AnsiColor.Green, Response.getOrDefault("Status", "?"), AnsiColor.Reset);
+            Logger.Custom(Indent + "%sMode      %s%s%n", AnsiColor.Red, AnsiColor.White, Response.getOrDefault("Mode", "?").toString().toUpperCase());
+            Logger.Custom(Indent + "%sAddress   %s%s:%d%n", AnsiColor.Red, AnsiColor.White, Response.getOrDefault("Host", "?"), ((Number) Response.getOrDefault("Port", 0.0)).intValue());
+            Logger.Custom(Indent + "%sUptime    %s%s%n", AnsiColor.Red, AnsiColor.White, Response.getOrDefault("Uptime", "?"));
+            Logger.Custom(Indent + "%sSessions  %s%d%n", AnsiColor.Red, AnsiColor.White, ((Number) Response.getOrDefault("Agents", 0.0)).intValue());
+            long SleepMs  = ((Number) Response.getOrDefault("SleepIntervalMs", 5000.0)).longValue();
+            long JitterMs = ((Number) Response.getOrDefault("JitterMs", 1000.0)).longValue();
+            Logger.Custom(Indent + "%sSleep     %s%ds ± %dms%n", AnsiColor.Red, AnsiColor.White, SleepMs / 1000, JitterMs);
+            String DbType   = Response.getOrDefault("DbType", "none").toString();
+            boolean DbUp    = Boolean.parseBoolean(Response.getOrDefault("DbOnline", "false").toString());
+            Logger.Custom(Indent + "%sDB        %s%s (%s)%n", AnsiColor.Red, AnsiColor.White, DbUp ? "connected" : "offline", DbType);
+            Logger.Custom(Indent + "%sServer    %shttp://%s:%d%s%n%n", AnsiColor.Red, AnsiColor.White, TsHost, TsPort, AnsiColor.Reset);
         } catch (Exception Ex) {
             Logger.Error("status: " + (Ex.getMessage() != null ? Ex.getMessage() : Ex.getClass().getSimpleName()));
         }
@@ -746,21 +753,17 @@ public final class TeamClient {
 
     private void ShowLogs() {
         try {
-            Map<String, Object> R = Get("/api/logs");
+            Map<String, Object> Response = Get("/api/logs");
             @SuppressWarnings("unchecked")
-            List<String> Logs = (List<String>) R.getOrDefault("Logs", new ArrayList<>());
+            List<String> Logs = (List<String>) Response.getOrDefault("Logs", new ArrayList<>());
             Logger.Custom("%s%n", TerminalHelper.Box("RECENT LOGS (last 30)"));
             Logger.Custom("%n");
             List<String> Recent = Logs.stream().skip(Math.max(0, Logs.size() - 30)).toList();
             for (String Line : Recent) {
-                String Color = AnsiColor.White;
-                if (Line.contains("[SESSION]") || Line.contains("[+]") || Line.contains("[-]")) Color = AnsiColor.Green;
-                else if (Line.contains("[AUTH]"))    Color = AnsiColor.Yellow;
-                else if (Line.contains("[TEAM]"))    Color = AnsiColor.Cyan;
-                else if (Line.contains("[CMD]"))     Color = AnsiColor.Blue;
-                else if (Line.contains("[WARN]"))    Color = AnsiColor.Yellow;
-                else if (Line.contains("[ERROR]"))   Color = AnsiColor.Red;
-                Logger.Custom(INDENT + "%s%s%s%n", Color, Line, AnsiColor.Reset);
+                String Color = Line.contains("[ERROR]") ? AnsiColor.Red
+                             : Line.contains("[WARN]")  ? AnsiColor.Yellow
+                             : AnsiColor.Blue;
+                Logger.Custom(Indent + "%s%s%s%n", Color, Line, AnsiColor.Reset);
             }
             Logger.Custom("%n");
         } catch (Exception Ex) {
@@ -770,13 +773,13 @@ public final class TeamClient {
 
     private void ShowChat() {
         try {
-            Map<String, Object> R = Get("/api/team/chat/messages");
+            Map<String, Object> Response = Get("/api/team/chat/messages");
             @SuppressWarnings("unchecked")
-            List<Map<String, Object>> Msgs = (List<Map<String, Object>>) R.getOrDefault("Messages", new ArrayList<>());
+            List<Map<String, Object>> Msgs = (List<Map<String, Object>>) Response.getOrDefault("Messages", new ArrayList<>());
             Logger.Custom("%s%n", TerminalHelper.Box("CHAT MESSAGES"));
             Logger.Custom("%n");
             if (Msgs.isEmpty()) {
-                Logger.Info(INDENT + "no messages");
+                Logger.Info(Indent + "no messages");
                 Logger.Custom("%n");
                 return;
             }
@@ -784,7 +787,7 @@ public final class TeamClient {
                 String From = M.getOrDefault("From", "?").toString();
                 String To = M.getOrDefault("To", "all").toString();
                 boolean Mine = From.equals(OperatorName);
-                Logger.Custom(INDENT + "%s[%s] %s%s%s [%s]: %s%s%n", Mine ? AnsiColor.Green : AnsiColor.White, M.getOrDefault("Timestamp", ""), Mine ? AnsiColor.Green : AnsiColor.Red, From, AnsiColor.Reset, To.equals("all") ? "all" : "→ " + To, M.getOrDefault("Message", ""), AnsiColor.Reset);
+                Logger.Custom(Indent + "%s[%s] %s%s%s [%s]: %s%s%n", Mine ? AnsiColor.Green : AnsiColor.White, M.getOrDefault("Timestamp", ""), Mine ? AnsiColor.Green : AnsiColor.Red, From, AnsiColor.Reset, To.equals("all") ? "all" : "→ " + To, M.getOrDefault("Message", ""), AnsiColor.Reset);
             }
             Logger.Custom("%n");
         } catch (Exception Ex) {
@@ -794,13 +797,13 @@ public final class TeamClient {
 
     private void ShowChatHistory(int Limit) {
         try {
-            Map<String, Object> R = Post("/api/team/chat/logs", Map.of("Limit", Limit));
+            Map<String, Object> Response = Post("/api/team/chat/logs", Map.of("Limit", Limit));
             @SuppressWarnings("unchecked")
-            List<Map<String, Object>> Messages = (List<Map<String, Object>>) R.getOrDefault("Logs", new ArrayList<>());
+            List<Map<String, Object>> Messages = (List<Map<String, Object>>) Response.getOrDefault("Logs", new ArrayList<>());
             Logger.Custom("%s%n", TerminalHelper.Box("CHAT HISTORY (last " + Limit + ")"));
             Logger.Custom("%n");
             if (Messages.isEmpty()) {
-                Logger.Info(INDENT + "no chat history");
+                Logger.Info(Indent + "no chat history");
                 Logger.Custom("%n");
                 return;
             }
@@ -810,7 +813,7 @@ public final class TeamClient {
                 String Ts   = Message.getOrDefault("Timestamp", "").toString();
                 if (Ts.length() > 19) Ts = Ts.substring(11, 19);
                 boolean Mine = From.equals(OperatorName);
-                Logger.Custom(INDENT + "%s[%s] %s%s%s [%s]: %s%s%n", Mine ? AnsiColor.Green : AnsiColor.White, Ts, Mine ? AnsiColor.Green : AnsiColor.Red, From, AnsiColor.Reset, To.equals("all") ? "all" : "→ " + To, Message.getOrDefault("Message", ""), AnsiColor.Reset);
+                Logger.Custom(Indent + "%s[%s] %s%s%s [%s]: %s%s%n", Mine ? AnsiColor.Green : AnsiColor.White, Ts, Mine ? AnsiColor.Green : AnsiColor.Red, From, AnsiColor.Reset, To.equals("all") ? "all" : "→ " + To, Message.getOrDefault("Message", ""), AnsiColor.Reset);
             }
             Logger.Custom("%n");
         } catch (Exception Ex) {
@@ -820,17 +823,17 @@ public final class TeamClient {
 
     private void ShowOperators() {
         try {
-            Map<String, Object> R = Get("/api/team/operators");
+            Map<String, Object> Response = Get("/api/team/operators");
             @SuppressWarnings("unchecked")
-            List<Map<String, Object>> Ops = (List<Map<String, Object>>) R.getOrDefault("Operators", new ArrayList<>());
+            List<Map<String, Object>> Ops = (List<Map<String, Object>>) Response.getOrDefault("Operators", new ArrayList<>());
             Logger.Custom("%s%n", TerminalHelper.Box("OPERATORS (" + Ops.size() + ")"));
             Logger.Custom("%n");
-            Logger.Custom(INDENT + "%s%-18s %-10s %-24s %-20s%s%n", AnsiColor.Red, "USERNAME", "ROLE", "PERMISSIONS", "LAST SEEN", AnsiColor.Reset);
+            Logger.Custom(Indent + "%s%-18s %-10s %-24s %-20s%s%n", AnsiColor.Red, "USERNAME", "ROLE", "PERMISSIONS", "LAST SEEN", AnsiColor.Reset);
             Logger.Custom("%s%n", TerminalHelper.Divider());
             for (Map<String, Object> Op : Ops) {
                 OperatorRole R2 = OperatorRole.FromString(Op.getOrDefault("Role", "MEMBER").toString());
                 boolean Me = Op.getOrDefault("Username", "").toString().equals(OperatorName);
-                Logger.Custom(INDENT + "%s%-18s %-10s %-24s %-20s%s%s%n", AnsiColor.White, Op.getOrDefault("Username", "?"), R2.name(), R2.PermissionString(), Op.getOrDefault("LastSeen", "Never"), Me ? AnsiColor.Green + " ◀ YOU" : "", AnsiColor.Reset);
+                Logger.Custom(Indent + "%s%-18s %-10s %-24s %-20s%s%s%n", AnsiColor.White, Op.getOrDefault("Username", "?"), R2.name(), R2.PermissionString(), Op.getOrDefault("LastSeen", "Never"), Me ? AnsiColor.Green + " ◀ YOU" : "", AnsiColor.Reset);
             }
             Logger.Custom("%n");
         } catch (Exception Ex) {
@@ -841,22 +844,22 @@ public final class TeamClient {
     private void ShowHistory(int AgentId, int Limit) {
         try {
             Map<String, Object> Body = Map.of("AgentId", AgentId, "Limit", Limit);
-            Map<String, Object> R = Post("/api/command/history", Body);
+            Map<String, Object> Response = Post("/api/command/history", Body);
             @SuppressWarnings("unchecked")
-            List<Map<String, Object>> Hist = (List<Map<String, Object>>) R.getOrDefault("History", new ArrayList<>());
+            List<Map<String, Object>> Hist = (List<Map<String, Object>>) Response.getOrDefault("History", new ArrayList<>());
             Logger.Custom("%s%n", TerminalHelper.Box("COMMAND HISTORY (last " + Limit + (AgentId > 0 ? " — session-" + AgentId : "") + ")"));
             Logger.Custom("%n");
             if (Hist.isEmpty()) {
-                Logger.Info(INDENT + "no history");
+                Logger.Info(Indent + "no history");
                 Logger.Custom("%n");
                 return;
             }
-            Logger.Custom(INDENT + "%s%-5s %-12s %-10s %-36s %s%s%n", AnsiColor.Red, "SID", "OPERATOR", "STATUS", "COMMAND", "TIMESTAMP", AnsiColor.Reset);
+            Logger.Custom(Indent + "%s%-5s %-12s %-10s %-36s %s%s%n", AnsiColor.Red, "SID", "OPERATOR", "STATUS", "COMMAND", "TIMESTAMP", AnsiColor.Reset);
             Logger.Custom("%s%n", TerminalHelper.Divider());
             for (Map<String, Object> H : Hist) {
                 boolean Ok = Boolean.parseBoolean(H.getOrDefault("Success", "false").toString());
                 String Cmd = TerminalHelper.Truncate(H.getOrDefault("Command", "").toString(), 36);
-                Logger.Custom(INDENT + "%s%-5s %-12s %s%-10s%s %-36s %s%s%n", AnsiColor.White, H.getOrDefault("AgentId", "?"), TerminalHelper.Truncate(H.getOrDefault("Operator", "?").toString(), 12), Ok ? AnsiColor.Green : AnsiColor.Red, Ok ? "✔ ok" : "✘ fail", AnsiColor.White, Cmd, H.getOrDefault("Timestamp", ""), AnsiColor.Reset);
+                Logger.Custom(Indent + "%s%-5s %-12s %s%-10s%s %-36s %s%s%n", AnsiColor.White, H.getOrDefault("AgentId", "?"), TerminalHelper.Truncate(H.getOrDefault("Operator", "?").toString(), 12), Ok ? AnsiColor.Green : AnsiColor.Red, Ok ? "[OK]" : "[FAIL]", AnsiColor.White, Cmd, H.getOrDefault("Timestamp", ""), AnsiColor.Reset);
             }
             Logger.Custom("%n");
         } catch (Exception Ex) {
@@ -866,12 +869,12 @@ public final class TeamClient {
 
     private void ShowSessionHistory(int Limit) {
         try {
-            Map<String, Object> R = Post("/api/sessions/history", Map.of("Limit", Limit));
+            Map<String, Object> Response = Post("/api/sessions/history", Map.of("Limit", Limit));
             @SuppressWarnings("unchecked")
-            List<Map<String, Object>> Sess = (List<Map<String, Object>>) R.getOrDefault("Sessions", new ArrayList<>());
+            List<Map<String, Object>> Sess = (List<Map<String, Object>>) Response.getOrDefault("Sessions", new ArrayList<>());
             Logger.Custom("%s%n", TerminalHelper.Box("SESSION HISTORY (last " + Limit + ")"));
             Logger.Custom("%n");
-            Sess.forEach(S -> Logger.Custom(INDENT + "%s%s%s%n", AnsiColor.White, S, AnsiColor.Reset));
+            Sess.forEach(S -> Logger.Custom(Indent + "%s%s%s%n", AnsiColor.White, S, AnsiColor.Reset));
             Logger.Custom("%n");
         } catch (Exception Ex) {
             Logger.Error(Ex.getMessage());
@@ -891,11 +894,11 @@ public final class TeamClient {
                         ConsecutiveFailures = 0;
                         DropReported        = false;
                         if (!ReAuthenticate()) {
-                            Logger.Warn("⚠ Re-authentication failed — session ended");
+                            Logger.Warn("re-authentication failed — session ended");
                             Running = false;
                             break;
                         }
-                        Logger.Ok("⟳ reconnected and re-authenticated to TeamServer");
+                        Logger.Info("reconnected and re-authenticated to TeamServer");
                     }
                     Object RawLogs = Response.get("Logs");
                     if (!(RawLogs instanceof java.util.List)) continue;
@@ -912,11 +915,9 @@ public final class TeamClient {
                         }
                         if (Timestamp.isEmpty() || Timestamp.compareTo(LastEventTimestamp) <= 0) continue;
                         LastEventTimestamp = Timestamp;
-                        boolean IsSession = Message.contains("[+]") || Message.contains("[-]") || Message.contains("session-");
-                        boolean IsAuth    = Message.contains("[AUTH]");
-                        boolean IsTeam    = Message.contains("[TEAM]") || Message.contains("[>]");
-                        boolean IsError   = Message.contains("[!]") || Message.contains("ERROR");
-                        String Color = IsSession ? AnsiColor.Green : IsAuth ? AnsiColor.Yellow : IsTeam ? AnsiColor.Cyan : IsError ? AnsiColor.Red : AnsiColor.White;
+                        String Color = Message.contains("[ERROR]") ? AnsiColor.Red
+                                     : Message.contains("[WARN]")  ? AnsiColor.Yellow
+                                     : AnsiColor.Blue;
                         PromptManager.PrintLine(Color + "[" + Timestamp + "] " + Message + AnsiColor.Reset);
                     }
                 } catch (InterruptedException InterruptedException) {
@@ -926,7 +927,7 @@ public final class TeamClient {
                     ConsecutiveFailures++;
                     if (ConsecutiveFailures >= 3 && !DropReported) {
                         DropReported = true;
-                        Logger.Warn("⚠ TeamServer connection lost — retrying...");
+                        Logger.Warn("TeamServer connection lost — retrying...");
                     }
                 }
             }
@@ -951,9 +952,9 @@ public final class TeamClient {
             Body.put("AgentId", Id);
             Body.put("Command", Cmd);
             Body.put("Operator", OperatorName);
-            Map<String, Object> R = Post("/api/command/execute", Body);
-            boolean Ok = Boolean.parseBoolean(R.getOrDefault("Success", "false").toString());
-            PrintOutput(Ok, R.getOrDefault("Output", "").toString());
+            Map<String, Object> Response = Post("/api/command/execute", Body);
+            boolean Ok = Boolean.parseBoolean(Response.getOrDefault("Success", "false").toString());
+            PrintOutput(Ok, Response.getOrDefault("Output", "").toString());
         } catch (Exception Ex) {
             Logger.Error(Ex.getMessage());
         }
@@ -972,9 +973,9 @@ public final class TeamClient {
             Map<String, Object> Body = new LinkedHashMap<>();
             Body.put("Command", Cmd);
             Body.put("Operator", OperatorName);
-            Map<String, Object> R;
+            Map<String, Object> Response;
             if (Target.equals("all")) {
-                R = Post("/api/command/broadcastall", Body);
+                Response = Post("/api/command/broadcastall", Body);
             } else {
                 List<Integer> Ids = new ArrayList<>();
                 for (String S : Target.split(","))
@@ -982,15 +983,15 @@ public final class TeamClient {
                         Ids.add(Integer.parseInt(S.trim()));
                     } catch (Exception Ign) {}
                 Body.put("AgentIds", Ids);
-                R = Post("/api/command/broadcast", Body);
+                Response = Post("/api/command/broadcast", Body);
             }
             @SuppressWarnings("unchecked")
-            Map<String, Object> Results = (Map<String, Object>) R.getOrDefault("Results", new LinkedHashMap<>());
+            Map<String, Object> Results = (Map<String, Object>) Response.getOrDefault("Results", new LinkedHashMap<>());
             Results.forEach((Id, V) -> {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> Res = (Map<String, Object>) V;
                 boolean Ok = Boolean.parseBoolean(Res.getOrDefault("Success", "false").toString());
-                Logger.Custom(INDENT + "%s[session-%s] %s%s%s%n", Ok ? AnsiColor.Green : AnsiColor.Red, Id, Ok ? "✔ " : "✘ ", Res.getOrDefault("Output", ""), AnsiColor.Reset);
+                Logger.Custom(Indent + "%s[session-%s] %s%s%s%n", Ok ? AnsiColor.Green : AnsiColor.Red, Id, Ok ? "[OK] " : "[FAIL] ", Res.getOrDefault("Output", ""), AnsiColor.Reset);
             });
         } catch (Exception Ex) {
             Logger.Error(Ex.getMessage());
@@ -999,9 +1000,9 @@ public final class TeamClient {
 
     private void Kill(int Id) {
         try {
-            Map<String, Object> R = Post("/api/agents/kill", Map.of("AgentId", Id));
-            if (Boolean.parseBoolean(R.getOrDefault("Success", "false").toString())) Logger.Ok("session-" + Id + " terminated");
-            else Logger.Error("kill failed: " + R.getOrDefault("Error", "?"));
+            Map<String, Object> Response = Post("/api/agents/kill", Map.of("AgentId", Id));
+            if (Boolean.parseBoolean(Response.getOrDefault("Success", "false").toString())) Logger.Info("session-" + Id + " terminated");
+            else Logger.Error("kill failed: " + Response.getOrDefault("Error", "?"));
         } catch (Exception Ex) {
             Logger.Error(Ex.getMessage());
         }
@@ -1009,8 +1010,8 @@ public final class TeamClient {
 
     private void DoDownload(int Id, String Path) {
         try {
-            Map<String, Object> R = Post("/api/command/download", Map.of("AgentId", Id, "Path", Path, "Operator", OperatorName));
-            PrintOutput(Boolean.parseBoolean(R.getOrDefault("Success", "false").toString()), R.getOrDefault("Output", "").toString());
+            Map<String, Object> Response = Post("/api/command/download", Map.of("AgentId", Id, "Path", Path, "Operator", OperatorName));
+            PrintOutput(Boolean.parseBoolean(Response.getOrDefault("Success", "false").toString()), Response.getOrDefault("Output", "").toString());
         } catch (Exception Ex) {
             Logger.Error(Ex.getMessage());
         }
@@ -1023,8 +1024,8 @@ public final class TeamClient {
             Body.put("LocalPath", Local);
             Body.put("RemotePath", Remote);
             Body.put("Operator", OperatorName);
-            Map<String, Object> R = Post("/api/command/upload", Body);
-            PrintOutput(Boolean.parseBoolean(R.getOrDefault("Success", "false").toString()), R.getOrDefault("Output", "").toString());
+            Map<String, Object> Response = Post("/api/command/upload", Body);
+            PrintOutput(Boolean.parseBoolean(Response.getOrDefault("Success", "false").toString()), Response.getOrDefault("Output", "").toString());
         } catch (Exception Ex) {
             Logger.Error(Ex.getMessage());
         }
@@ -1032,8 +1033,8 @@ public final class TeamClient {
 
     private void SetNote(int Id, String Note) {
         try {
-            Map<String, Object> R = Post("/api/agents/note", Map.of("AgentId", Id, "Note", Note));
-            if (Boolean.parseBoolean(R.getOrDefault("Success", "false").toString())) Logger.Ok("Note saved for session-" + Id);
+            Map<String, Object> Response = Post("/api/agents/note", Map.of("AgentId", Id, "Note", Note));
+            if (Boolean.parseBoolean(Response.getOrDefault("Success", "false").toString())) Logger.Info("Note saved for session-" + Id);
         } catch (Exception Ex) {
             Logger.Error(Ex.getMessage());
         }
@@ -1041,13 +1042,13 @@ public final class TeamClient {
 
     private void GetNote(int Id) {
         try {
-            Map<String, Object> R = Get("/api/agents");
+            Map<String, Object> Response = Get("/api/agents");
             @SuppressWarnings("unchecked")
-            List<Map<String, Object>> Agents = (List<Map<String, Object>>) R.getOrDefault("Agents", new ArrayList<>());
+            List<Map<String, Object>> Agents = (List<Map<String, Object>>) Response.getOrDefault("Agents", new ArrayList<>());
             Agents.stream()
                 .filter(A -> ((Number) A.getOrDefault("ID", -1.0)).intValue() == Id)
                 .findFirst()
-                .ifPresentOrElse(A -> Logger.Custom(INDENT + "Note [%d]: %s%s%s%n", Id, AnsiColor.White, A.getOrDefault("Note", "(none)"), AnsiColor.Reset), () -> Logger.Warn("session not found"));
+                .ifPresentOrElse(A -> Logger.Custom(Indent + "Note [%d]: %s%s%s%n", Id, AnsiColor.White, A.getOrDefault("Note", "(none)"), AnsiColor.Reset), () -> Logger.Warn("session not found"));
         } catch (Exception Ex) {
             Logger.Error(Ex.getMessage());
         }
@@ -1060,7 +1061,7 @@ public final class TeamClient {
             ChatBody.put("To", To);
             ChatBody.put("Message", Msg);
             Post("/api/team/chat/send", ChatBody);
-            Logger.Custom(INDENT + "%s→ %s:%s %s%n", AnsiColor.Green, To, AnsiColor.Reset, Msg);
+            Logger.Custom(Indent + "%s→ %s:%s %s%n", AnsiColor.Green, To, AnsiColor.Reset, Msg);
         } catch (Exception Ex) {
             Logger.Error(Ex.getMessage());
         }
@@ -1081,8 +1082,8 @@ public final class TeamClient {
         if (Token != null) Req.header("Authorization", "Bearer " + Token);
         HttpResponse<String> Resp = Http.send(Req.build(), HttpResponse.BodyHandlers.ofString());
         @SuppressWarnings("unchecked")
-        Map<String, Object> R = Json.fromJson(Resp.body(), Map.class);
-        return R != null ? R : new LinkedHashMap<>();
+        Map<String, Object> Response = Json.fromJson(Resp.body(), Map.class);
+        return Response != null ? Response : new LinkedHashMap<>();
     }
 
     private Map<String, Object> Get(String Path) throws Exception {
@@ -1093,8 +1094,8 @@ public final class TeamClient {
         if (Token != null) Req.header("Authorization", "Bearer " + Token);
         HttpResponse<String> Resp = Http.send(Req.build(), HttpResponse.BodyHandlers.ofString());
         @SuppressWarnings("unchecked")
-        Map<String, Object> R = Json.fromJson(Resp.body(), Map.class);
-        return R != null ? R : new LinkedHashMap<>();
+        Map<String, Object> Response = Json.fromJson(Resp.body(), Map.class);
+        return Response != null ? Response : new LinkedHashMap<>();
     }
 
     private static int ParseInt(String Value) {
@@ -1109,22 +1110,105 @@ public final class TeamClient {
         }
     }
 
+    private void ShowProfiles() {
+        try {
+            Map<String, Object> Response = Get("/api/profiles");
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> Profiles = (List<Map<String, Object>>) Response.getOrDefault("Profiles", new ArrayList<>());
+            Logger.Custom("%s%n", TerminalHelper.Box("OPERATOR PROFILES"));
+            Logger.Custom("%n");
+            if (Profiles.isEmpty()) { Logger.Info("no profiles saved"); Logger.Custom("%n"); return; }
+            Logger.Custom(Indent + "%s%-20s %-30s %s%s%n", AnsiColor.Red, "NAME", "DESCRIPTION", "MODIFIED", AnsiColor.Reset);
+            Logger.Custom(Indent + "%s%n", "─".repeat(75));
+            for (Map<String, Object> P : Profiles) {
+                Logger.Custom(Indent + "%s%-20s %-30s %s%s%n", AnsiColor.White,
+                    P.getOrDefault("Name", "?"),
+                    TerminalHelper.Truncate(P.getOrDefault("Description", "").toString(), 30),
+                    P.getOrDefault("Modified", ""),
+                    AnsiColor.Reset);
+            }
+            Logger.Custom("%n");
+        } catch (Exception Ex) { Logger.Error("profiles: " + Ex.getMessage()); }
+    }
+
+    private void ShowProfile(String Name) {
+        try {
+            Map<String, Object> Response = Name != null ? Post("/api/profiles/get", Map.of("Name", Name)) : Get("/api/profiles/active");
+            Logger.Custom("%s%n", TerminalHelper.Box("PROFILE: " + Response.getOrDefault("Name", "?")));
+            Logger.Custom("%n");
+            @SuppressWarnings("unchecked")
+            Map<String, Object> Settings = (Map<String, Object>) Response.getOrDefault("Settings", new LinkedHashMap<>());
+            Settings.forEach((Key, Value) -> Logger.Custom(Indent + "%s%-35s %s%s%s%n", AnsiColor.Red, Key, AnsiColor.White, Value, AnsiColor.Reset));
+            Logger.Custom("%n");
+        } catch (Exception Ex) { Logger.Error("profile: " + Ex.getMessage()); }
+    }
+
+    private void LoadProfile(String Name) {
+        try {
+            Map<String, Object> Response = Post("/api/profiles/load", Map.of("Name", Name));
+            if (Boolean.parseBoolean(Response.getOrDefault("Success", "false").toString()))
+                Logger.Info("profile loaded: " + Name);
+            else
+                Logger.Error(Response.getOrDefault("Error", "failed to load profile").toString());
+        } catch (Exception Ex) { Logger.Error("loadprofile: " + Ex.getMessage()); }
+    }
+
+    private void SaveProfile(String Name, String Description) {
+        try {
+            Map<String, Object> Body = new LinkedHashMap<>();
+            Body.put("Name", Name);
+            Body.put("Description", Description);
+            Map<String, Object> Response = Post("/api/profiles/save", Body);
+            if (Boolean.parseBoolean(Response.getOrDefault("Success", "false").toString()))
+                Logger.Info("profile saved: " + Name);
+            else
+                Logger.Error(Response.getOrDefault("Error", "failed to save profile").toString());
+        } catch (Exception Ex) { Logger.Error("saveprofile: " + Ex.getMessage()); }
+    }
+
+    private void DeleteProfile(String Name) {
+        try {
+            Map<String, Object> Response = Post("/api/profiles/delete", Map.of("Name", Name));
+            if (Boolean.parseBoolean(Response.getOrDefault("Success", "false").toString()))
+                Logger.Info("profile deleted: " + Name);
+            else
+                Logger.Error(Response.getOrDefault("Error", "failed to delete profile").toString());
+        } catch (Exception Ex) { Logger.Error("delprofile: " + Ex.getMessage()); }
+    }
+
+    private void CloneProfile(String Source, String Target) {
+        try {
+            Map<String, Object> Response = Post("/api/profiles/clone", Map.of("Source", Source, "Target", Target));
+            if (Boolean.parseBoolean(Response.getOrDefault("Success", "false").toString()))
+                Logger.Info("profile cloned: " + Source + " -> " + Target);
+            else
+                Logger.Error(Response.getOrDefault("Error", "failed to clone profile").toString());
+        } catch (Exception Ex) { Logger.Error("cloneprofile: " + Ex.getMessage()); }
+    }
+
+    private void EditProfile(String Name, String Key, String Value) {
+        try {
+            Map<String, Object> Response = Post("/api/profiles/edit", Map.of("Name", Name, "Key", Key, "Value", Value));
+            if (Boolean.parseBoolean(Response.getOrDefault("Success", "false").toString()))
+                Logger.Info("profile updated: " + Name + "." + Key + " = " + Value);
+            else
+                Logger.Error(Response.getOrDefault("Error", "failed to edit profile").toString());
+        } catch (Exception Ex) { Logger.Error("editprofile: " + Ex.getMessage()); }
+    }
+
+
     private static final class Logger {
 
-        static void Ok(String Message) {
-            System.out.printf("  %s✔ %s%s%n%n", AnsiColor.Green, Message, AnsiColor.Reset);
+        static void Info(String Message) {
+            System.out.printf("%s[%sINFO%s] %s%s%n", AnsiColor.White, AnsiColor.Blue, AnsiColor.White, Message, AnsiColor.Reset);
         }
 
         static void Warn(String Message) {
-            System.out.printf("  %s⚠ %s%s%n", AnsiColor.White, Message, AnsiColor.Reset);
+            System.out.printf("%s[%sWARN%s] %s%s%n", AnsiColor.White, AnsiColor.Yellow, AnsiColor.White, Message, AnsiColor.Reset);
         }
 
         static void Error(String Message) {
-            System.out.printf("  %s✘ %s%s%n", AnsiColor.Red, Message, AnsiColor.Reset);
-        }
-
-        static void Info(String Message) {
-            Logger.Custom("%s%n", Message);
+            System.out.printf("%s[%sERROR%s] %s%s%n", AnsiColor.White, AnsiColor.Red, AnsiColor.White, Message, AnsiColor.Reset);
         }
 
         static void Custom(String Format, Object... Args) {

